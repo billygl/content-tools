@@ -21,7 +21,7 @@ def extract_lines_vo(archivo_entrada, archivo_salida, prefix, include=True):
 
 if __name__ == "__main__":
     if len(sys.argv) != 3:
-        print("Uso: python get_vo.py input_script.txt output")
+        print("Uso: python get_vo.py data/input_script.txt data/output")
     else:
         extract_lines_vo(sys.argv[1], sys.argv[2] + "_f.txt", "::", True)
         extract_lines_vo(sys.argv[1], sys.argv[2] + "_vo.txt", "::", False)
