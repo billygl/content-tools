@@ -5,6 +5,7 @@ $DURATION = 0.18
 
 $inputFiles = Get-ChildItem -Path $FOLDER -Filter "input*.mp4"
 foreach ($file in $inputFiles) {
+    Write-Host "Processing file: $($file.Name)"
     $IN = $file.FullName
     $OUT = [System.IO.Path]::Combine($file.DirectoryName, "$($file.BaseName)_out.mp4")
 
@@ -35,5 +36,6 @@ foreach ($file in $inputFiles) {
     Set-Content -Path "data/audio_filter.txt" -Value $audioFilter
 
     # 4. Apply filters:
-    & ffmpeg -i $IN -hide_banner -filter_script:v data/video_filter.txt -filter_script:a data/audio_filter.txt -filter:v fps=15 $OUT
+    & ffmpeg -i $IN -hide_banner -filter_script:v "data/video_filter.txt" -filter_script:a "data/audio_filter.txt" -r 30 $OUT
+    Write-Host "Output saved to: $OUT"
 }
