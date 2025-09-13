@@ -17,7 +17,9 @@ if __name__ == "__main__":
     input_prefix = "input"
 
     pattern = os.path.join(folder_path, f"{input_prefix}*.srt")
-    srt_files = glob.glob(pattern)
+    all_srt_files = glob.glob(pattern)
+    # Exclude files that have already been converted
+    srt_files = [f for f in all_srt_files if 'converted' not in os.path.basename(f)]
 
     if not srt_files:
         print("No matching .srt files found.")
