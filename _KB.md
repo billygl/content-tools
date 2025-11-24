@@ -1,3 +1,7 @@
+# array in powershell
+- https://learn.microsoft.com/en-us/powershell/scripting/learn/deep-dives/everything-about-arrays?view=powershell-7.5
+  - https://learn.microsoft.com/en-us/powershell/scripting/learn/deep-dives/everything-about-arrays?view=powershell-7.5#return-an-array
+
 # compressor audio da vinci resolve
 - https://www.youtube.com/watch?v=XzDlBLpf4Xk
 - https://www.youtube.com/watch?v=y2Vnp_XyRI4
