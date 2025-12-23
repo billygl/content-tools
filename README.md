@@ -1,6 +1,11 @@
 # batch
 - write the folder names in batch.txt
 - execute batch.ps1
+- copy files into raw folder
+- rename files to
+  - input_rs* to remove silence
+- rename files to
+  - input_rb* to remove background
 
 # get voice over
 ````
@@ -15,20 +20,20 @@ remove_silence.ps1
 # remove background
 - use .venv (with python 3.9)
 ````
-python.exe -m backgroundremover.cmd.cli -i "input_out.mp4" -gb 2 -wn 2 -tv -mk -o "output.mov"
-````
-
-# cut video
-````
-ffmpeg -i "input.mp4" -ss 00:00:45 -to 00:01:18 -c copy "input_rs_2.mp4"
+.\backgroundremover\.venv\Scripts/Activate.ps1
+python.exe -m backgroundremover.backgroundremover.cmd.cli -i "input_out.mp4" -gb 2 -wn 2 -tv -mk -o "output.mov"
 ````
 
 ## use
 - output(.mov)
   - media / Add to media pool as matte
 - in fusion page
-  - ouput -> matte/luma keyer -> input_out (fit mask:stretch) > out
+  - ouput -> matte/luma keyer -> input_out (settings/fit mask:stretch) > out
 
+# cut video
+````
+ffmpeg -i "input.mp4" -ss 00:00:45 -to 00:01:18 -c copy "input_rs_2.mp4"
+````
 
 # EXTRACT AUDIO FROM MP4
 ````
