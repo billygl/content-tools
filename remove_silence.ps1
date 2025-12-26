@@ -10,7 +10,7 @@ $DURATION = 0.25 #0.20 0.18
 $inputFiles = Get-ChildItem -Path $FOLDER -Filter "input_rs*.mp4" | 
     Where-Object { $_.Name -notmatch "_mid\.mp4" -and $_.Name -notmatch "_out\.mp4" }
 foreach ($file in $inputFiles) {
-    Write-Host "Processing file: $($file.Name)"
+    Write-Host "$(Get-Date -Format 'HH:mm:ss') Processing file: $($file.Name)"
     $IN = $file.FullName
 	#$MID = $file.FullName
     $MID = [System.IO.Path]::Combine($file.DirectoryName, "$($file.BaseName)_mid.mp4")

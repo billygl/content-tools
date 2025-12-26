@@ -8,7 +8,7 @@ $FOLDER = $folder
 $inputFiles = Get-ChildItem -Path $FOLDER -Filter "input*rb*out.mp4" | 
     Where-Object { $_.Name -notmatch "_mid\.mp4" }
 foreach ($file in $inputFiles) {
-    Write-Host "Processing file: $($file.Name)"
+    Write-Host "$(Get-Date -Format 'HH:mm:ss') Processing file: $($file.Name)"
     $IN = $file.FullName
     $OUT = [System.IO.Path]::Combine($file.DirectoryName, "$($file.BaseName)_out_nb.mov")
 
