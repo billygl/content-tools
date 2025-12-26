@@ -6,6 +6,7 @@ from google import genai
 load_dotenv()
 
 input_file = 'text.txt'
+system_prompt = "Highlight keywords. Highlight the most important words by making them enclosed in asterisks (*). Choose only 4 or 5 most relevant words to highlight but highlight all their ocurrences. At then end, add 3 o 4 relevant hashtags related to the text. Use spanish. Add some emojis to decorate some ideas."
 
 def to_bold(text):
     """Converts text to mathematical bold unicode characters."""
@@ -22,7 +23,6 @@ def to_bold(text):
     return result
 
 def highlight(text):
-    system_prompt = "Highlight keywords. Highlight the most important words by making them enclosed in asterisks (*). Choose only 3 or 4  most relevant words to highlight. At then end, add 3 o 4 relevant hashtags related to the text. Use spanish. Add a pair of emojis to decorate some ideas."
     client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
     response = client.models.generate_content(
         model="gemini-2.5-flash-lite",
