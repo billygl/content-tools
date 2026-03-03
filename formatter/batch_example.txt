@@ -1,0 +1,15 @@
+This is the text for my first post. 
+It talks about some interesting technology.
+-----
+Here is the second post. 
+If an images folder is provided to the script, it will look for '1.jpg' (or .png) for the first post, '2.jpg' for this second post, etc.
+-----
+And a third post here.
+I can write as many of these as I want. The separator is exactly five dashes on their own line.
+-----
+Fourth post goes here!
+If '4.jpg' does not exist in the images folder, it will just post text.
+-----
+Fifth post discussing AI.
+-----
+Sixth post!
