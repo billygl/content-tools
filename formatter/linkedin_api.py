@@ -124,37 +124,11 @@ def schedule_post(text: str, image_urn: str = None, scheduled_time_ms: int = Non
         }
     }
     
-    # Optional scheduling parameter
+    # We default back to ugcPosts if scheduling is restricted
     if scheduled_time_ms:
-        # Note: Depending on your API tier, standard ugcPosts might not support 'scheduledTime' directly,
-        # but the newer Posts API ('https://api.linkedin.com/rest/posts') supports it.
-        # For simplicity, we assume true scheduling if supported, else you queue it.
-        # In the modern Posts API, the field is headers['X-Restli-Protocol-Version'] = '2.0.0'
-        # Let's map this properly if they use the Posts API vs UGC posts
-        # To schedule natively, it's often a different endpoint or field. We'll add this
-        # placeholder. If the native API fails on scheduling, we will handle that.
-        url = "https://api.linkedin.com/v2/posts"
-        payload = {
-            "author": author_urn,
-            "commentary": text,
-            "visibility": "PUBLIC",
-            "distribution": {
-                "feedDistribution": "MAIN_FEED",
-                "targetEntities": [],
-                "thirdPartyDistributionChannels": []
-            },
-            "lifecycleState": "SCHEDULED",
-            "scheduledTime": scheduled_time_ms,
-            "isReshareDisabledByAuthor": False
-        }
+        print("Warning: Native LinkedIn API scheduling (scheduledTime) is restricted to approved partners.")
+        print("In Phase 1, we will post it immediately if this function is called.")
         
-        if image_urn:
-            payload["content"] = {
-                "media": {
-                    "id": image_urn
-                }
-            }
-    
     # Ensure header has Linkedin-Version for Posts API
     headers = _get_headers()
     headers["Linkedin-Version"] = "202304" # Use an appropriate dated version for Posts API
