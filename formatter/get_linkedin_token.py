@@ -4,7 +4,7 @@ from http.server import HTTPServer, BaseHTTPRequestHandler
 import requests
 import sys
 import os
-from dotenv import load_dotenv
+from dotenv import load_dotenv, set_key
 
 load_dotenv()
 
@@ -128,12 +128,17 @@ def main():
         access_token = token_data.get('access_token')
         expires_in = token_data.get('expires_in')
         
-        print("\n=======================================================")
-        print("SUCCESS! Here is your Access Token:")
+        print("=======================================================")
+        print(f"SUCCESS! Here is your Access Token:")
         print("=======================================================")
         print(access_token)
         print("=======================================================")
-        print(f"Copy the token above and paste it into your .env file as LINKEDIN_ACCESS_TOKEN={access_token[:10]}...")
+        
+        # Save to .env
+        env_path = os.path.join(os.path.dirname(__file__), '.env')
+        set_key(env_path, "LINKEDIN_ACCESS_TOKEN", access_token)
+        print(f"✅ Successfully saved LINKEDIN_ACCESS_TOKEN to {env_path}")
+        
         if expires_in:
             print(f"This token expires in {expires_in} seconds (approx {expires_in/86400:.1f} days).")
             
