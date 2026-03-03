@@ -28,7 +28,7 @@ python.exe -m backgroundremover.backgroundremover.cmd.cli -i "input_out.mp4" -gb
 - output(.mov)
   - media / Add to media pool as matte
 - in fusion page
-  - ouput -> matte/luma keyer -> input_out (settings/fit mask:stretch) > out
+  - ouput(.mov) -> matte/luma keyer -> input_out (settings/fit mask:stretch) > out
 
 # cut video
 ````
