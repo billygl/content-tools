@@ -28,10 +28,12 @@ Getting a token to post on LinkedIn involves creating an app.
 3. Fill in the details (Name, Company Page, Privacy Policy URL).
 4. Verify the app (LinkedIn will send a verification link to the Page admin).
 5. Go to the **Products** tab in your app and request access to **Share on LinkedIn** and **Sign In with LinkedIn using OpenID Connect**.
-6. Go to the **Auth** tab. Note your `Client ID` and `Client Secret`.
-7. **Generate Access Token:** The easiest way to get a long-lived access token for your own account without building a full OAuth web flow is:
-   - Use the [LinkedIn API Token Generator tool](https://linkedin.github.io/oauth2-tools/) or Postman.
-   - Request scopes: `w_member_social`, `r_liteprofile`, `openid`, `profile`, `email`.
-   - Complete the login flow and copy the exact Access Token provided.
+31. Go to the **Auth** tab. Note your `Client ID` and `Client Secret`.
+32. **Add Redirect URL**: Under OAuth 2.0 settings in the Auth tab, add exactly `http://localhost:8080/callback` as an Authorized redirect URL for your app.
+33. **Generate Access Token:** We will generate it locally since online tools are unreliable.
+   - Using your terminal, go to the `formatter` folder.
+   - Run the included script: `python get_linkedin_token.py`
+   - It will ask for your Client ID and Client Secret, then open your browser so you can log in.
+   - Once authorized, the terminal script will print your Access Token.
 
-Paste these values into your `linkedin/.env` file.
+Paste these values into your `.env` file (`LINKEDIN_ACCESS_TOKEN=your_token_here`).
