@@ -25,7 +25,7 @@ def to_bold(text):
 def highlight(text):
     client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
     response = client.models.generate_content(
-        model="gemini-2.5-flash-lite",
+        model="gemini-3-flash-preview",
         contents=f"{system_prompt}\n\n{text}"
     )
     return response.text
