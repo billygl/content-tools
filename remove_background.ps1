@@ -12,6 +12,12 @@ foreach ($file in $inputFiles) {
     $IN = $file.FullName
     $OUT = [System.IO.Path]::Combine($file.DirectoryName, "$($file.BaseName)_out_nb.mov")
 
+    $MID = [System.IO.Path]::Combine($file.DirectoryName, "$($file.BaseName)_mid.mp4")
+
+    if (-not (Test-Path $MID)) {
+        & ffmpeg -i $IN -c:v libx264 -c:a copy -r 30 $MID -loglevel quiet
+    }
+
     $ouput = & backgroundremover\.venv\Scripts\python.exe -m backgroundremover.backgroundremover.cmd.cli -i "$IN" -gb 2 -wn 2 -tv -mk -o "$OUT"
     
     Write-Host "Output saved to: $OUT"
