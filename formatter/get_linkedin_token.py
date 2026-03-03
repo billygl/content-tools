@@ -3,6 +3,10 @@ import webbrowser
 from http.server import HTTPServer, BaseHTTPRequestHandler
 import requests
 import sys
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
 
 # We'll listen on a local port for the OAuth callback
 PORT = 8080
@@ -48,8 +52,18 @@ def main():
     print(f"   {REDIRECT_URI}")
     print("2. Make sure you have requested the 'Share on LinkedIn' and 'Sign In with LinkedIn using OpenID Connect' products.\n")
     
-    client_id = input("Enter your Client ID: ").strip()
-    client_secret = input("Enter your Client Secret: ").strip()
+    client_id = os.getenv("LINKEDIN_CLIENT_ID")
+    client_secret = os.getenv("LINKEDIN_CLIENT_SECRET")
+    
+    if not client_id:
+        client_id = input("Enter your Client ID: ").strip()
+    else:
+        print(f"Using Client ID from .env: {client_id[:5]}...")
+        
+    if not client_secret:
+        client_secret = input("Enter your Client Secret: ").strip()
+    else:
+        print("Using Client Secret from .env: ********")
     
     if not client_id or not client_secret:
         print("Client ID and Secret are required. Exiting.")
@@ -58,7 +72,7 @@ def main():
     # 1. Authorize URL
     auth_url = "https://www.linkedin.com/oauth/v2/authorization"
     # We require these scopes for openid and posting
-    scopes = "w_member_social r_liteprofile openid profile email"
+    scopes = "w_member_social openid profile email"
     
     params = {
         "response_type": "code",
