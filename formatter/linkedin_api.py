@@ -124,11 +124,10 @@ def schedule_post(text: str, image_urn: str = None, scheduled_time_ms: int = Non
         }
     }
     
-    # We default back to ugcPosts if scheduling is restricted
     if scheduled_time_ms:
-        print("Warning: Native LinkedIn API scheduling (scheduledTime) is restricted to approved partners.")
-        print("In Phase 1, we will post it immediately if this function is called.")
-        
+        print("Warning: Native LinkedIn API scheduling (scheduledTime) is restricted to approved Marketing Developer Partners.")
+        print("We are sending the post immediately instead. Local sleep handles the schedule.")
+    
     # Ensure header has Linkedin-Version for Posts API
     headers = _get_headers()
     headers["Linkedin-Version"] = "202304" # Use an appropriate dated version for Posts API
