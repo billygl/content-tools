@@ -89,7 +89,8 @@ def main():
         print(f"Publishing post to LinkedIn immediately...")
         try:
             # We pass scheduled_time_ms=None because native scheduling is restricted
-            schedule_post(formatted_text, image_urn=image_urn, scheduled_time_ms=None)
+            post_url = schedule_post(formatted_text, image_urn=image_urn, scheduled_time_ms=None)
+            print(f"✅ Post successful! View it here: {post_url}")
         except Exception as e:
             print(f"Failed to post {post_number}: {e}")
             

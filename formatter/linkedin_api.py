@@ -140,4 +140,11 @@ def schedule_post(text: str, image_urn: str = None, scheduled_time_ms: int = Non
         print(response.json())
         response.raise_for_status()
         
-    return response.headers.get("x-restli-id", "Posted Successfully")
+    post_urn = response.headers.get("x-restli-id")
+    if post_urn:
+        # e.g., urn:li:share:123456789
+        post_id = post_urn.split(":")[-1]
+        post_url = f"https://www.linkedin.com/feed/update/{post_urn}"
+        return post_url
+    
+    return "Posted Successfully (URL not available)"
