@@ -36,13 +36,56 @@ def _get_author_urn():
         return AUTHOR_URN
     return get_my_profile()
 
-def initialize_image_upload():
-    """Step 1: Register the upload to LinkedIn to get an upload URL."""
+def upload_local_image(image_path: str) -> str:
+    """Uploads a local image file to LinkedIn and returns the asset URN."""
+    if not os.path.exists(image_path):
+        raise FileNotFoundError(f"Image not found at {image_path}")
+        
+    print(f"Registering image upload for {image_path}...")
+    upload_url, asset_urn = initialize_media_upload("urn:li:digitalmediaRecipe:feedshare-image")
+    
+    # Step 2: Upload the binary data
+    print(f"Uploading binary data to LinkedIn...")
+    with open(image_path, "rb") as f:
+        media_data = f.read()
+        
+    upload_headers = {"Authorization": f"Bearer {ACCESS_TOKEN}"}
+    upload_response = requests.put(upload_url, headers=upload_headers, data=media_data)
+    upload_response.raise_for_status()
+    
+    print(f"Successfully uploaded image. Asset URN: {asset_urn}")
+    return asset_urn
+
+def upload_local_document(doc_path: str, title: str = "Document") -> str:
+    """Uploads a local PDF/Document to LinkedIn and returns the asset URN."""
+    if not os.path.exists(doc_path):
+        raise FileNotFoundError(f"Document not found at {doc_path}")
+        
+    print(f"Registering document upload for {doc_path}...")
+    upload_url, asset_urn = initialize_media_upload("urn:li:digitalmediaRecipe:feedshare-document")
+    
+    # Step 2: Upload binary data
+    print(f"Uploading document binary to LinkedIn...")
+    with open(doc_path, "rb") as f:
+        doc_data = f.read()
+        
+    upload_headers = {
+        "Authorization": f"Bearer {ACCESS_TOKEN}",
+        "Content-Type": "application/pdf"
+    }
+    upload_response = requests.put(upload_url, headers=upload_headers, data=doc_data)
+    upload_response.raise_for_status()
+    
+    print(f"Successfully uploaded document. Asset URN: {asset_urn}")
+    return asset_urn
+
+def initialize_media_upload(recipe_urn: str):
+    """Generic media registration (image or document)."""
     author_urn = _get_author_urn()
     url = "https://api.linkedin.com/v2/assets?action=registerUpload"
     payload = {
         "registerUploadRequest": {
-            "recipes": ["urn:li:digitalmediaRecipe:feedshare-image"],
+            "recipes": [recipe_urn],
             "owner": author_urn,
             "serviceRelationships": [
                 {
@@ -63,41 +106,24 @@ def initialize_image_upload():
     
     return upload_url, asset_urn
 
-def upload_local_image(image_path: str) -> str:
-    """Uploads a local image file to LinkedIn and returns the asset URN."""
-    if not os.path.exists(image_path):
-        raise FileNotFoundError(f"Image not found at {image_path}")
-        
-    print(f"Registering upload for {image_path}...")
-    upload_url, asset_urn = initialize_image_upload()
-    
-    # Step 2: Upload the binary data
-    print(f"Uploading binary data to LinkedIn...")
-    # Read the file
-    with open(image_path, "rb") as f:
-        image_data = f.read()
-        
-    # The upload HTTP request requires an OAuth token too
-    upload_headers = {"Authorization": f"Bearer {ACCESS_TOKEN}"}
-    upload_response = requests.put(upload_url, headers=upload_headers, data=image_data)
-    upload_response.raise_for_status()
-    
-    print(f"Successfully uploaded image. Asset URN: {asset_urn}")
-    return asset_urn
-
-def schedule_post(text: str, image_urn: str = None, scheduled_time_ms: int = None):
+def schedule_post(text: str, image_urn: str = None, document_urn: str = None, scheduled_time_ms: int = None):
     """
     Schedules or posts to LinkedIn.
-    Use scheduled_time_ms (epoch milliseconds) to schedule in the future.
+    Supports Image or Document (PDF).
     """
     author_urn = _get_author_urn()
     url = "https://api.linkedin.com/v2/ugcPosts"
     
-    # Construct the content block
     media_content = []
     share_media_category = "NONE"
     
-    if image_urn:
+    if document_urn:
+        share_media_category = "DOCUMENT"
+        media_content.append({
+            "media": document_urn,
+            "status": "READY"
+        })
+    elif image_urn:
         share_media_category = "IMAGE"
         media_content.append({
             "media": image_urn,

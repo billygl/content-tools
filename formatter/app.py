@@ -7,7 +7,7 @@ import json
 from datetime import datetime, timedelta
 from dotenv import load_dotenv, set_key
 from formatter import gemini_highlight, apply_bold, process_batch_file, save_formatted_posts
-from linkedin_api import upload_local_image, schedule_post
+from linkedin_api import upload_local_image, upload_local_document, schedule_post
 
 load_dotenv()
 
@@ -145,20 +145,31 @@ def run_step():
                 queue = get_queue()
                 posts = process_batch_file("data/final_output.txt")
                 
-                # We need to know which image matches which post
+                # We need to know which file matches which post
                 for i, text in enumerate(posts):
                     post_number = i + 1
-                    image_path = None
-                    for ext in ['.jpg', '.jpeg', '.png']:
-                        path = os.path.join("data/images", f"{post_number}{ext}")
-                        if os.path.exists(path):
-                            image_path = path
-                            break
+                    media_path = None
+                    media_type = None
+                    
+                    # 1. Check for PDF first (Precedence)
+                    pdf_path = os.path.join("data/uploads", f"{post_number}.pdf")
+                    if os.path.exists(pdf_path):
+                        media_path = pdf_path
+                        media_type = "document"
+                    else:
+                        # 2. Check for Images
+                        for ext in ['.jpg', '.jpeg', '.png']:
+                            path = os.path.join("data/uploads", f"{post_number}{ext}")
+                            if os.path.exists(path):
+                                media_path = path
+                                media_type = "image"
+                                break
                     
                     queue.append({
                         "id": secrets.token_hex(4),
                         "text": text,
-                        "image_path": image_path,
+                        "media_path": media_path,
+                        "media_type": media_type,
                         "target_time": target_time_str,
                         "status": "pending",
                         "created_at": datetime.now().isoformat()
@@ -167,24 +178,39 @@ def run_step():
                 save_queue(queue)
                 return jsonify({"status": "success", "message": f"Batch scheduled for {target_time_str}!"})
 
-            # Immediate post (original behavior)
+            # Immediate post
             posts = process_batch_file("data/final_output.txt")
-            images_dir = "data/images"
+            uploads_dir = "data/uploads"
             logs = []
             for i, text in enumerate(posts):
-                image_path = None
-                for ext in ['.jpg', '.jpeg', '.png']:
-                    path = os.path.join(images_dir, f"{i+1}{ext}")
-                    if os.path.exists(path):
-                        image_path = path
-                        break
+                post_number = i + 1
+                media_path = None
+                media_type = None
+                
+                # Check PDF
+                pdf_path = os.path.join(uploads_dir, f"{post_number}.pdf")
+                if os.path.exists(pdf_path):
+                    media_path = pdf_path
+                    media_type = "document"
+                else:
+                    # Check Images
+                    for ext in ['.jpg', '.jpeg', '.png']:
+                        path = os.path.join(uploads_dir, f"{post_number}{ext}")
+                        if os.path.exists(path):
+                            media_path = path
+                            media_type = "image"
+                            break
                 
                 image_urn = None
-                if image_path:
-                    image_urn = upload_local_image(image_path)
+                doc_urn = None
+                if media_path:
+                    if media_type == "document":
+                        doc_urn = upload_local_document(media_path)
+                    else:
+                        image_urn = upload_local_image(media_path)
                 
-                post_url = schedule_post(text, image_urn=image_urn)
-                logs.append(f"Post {i+1}: {post_url}")
+                post_url = schedule_post(text, image_urn=image_urn, document_urn=doc_urn)
+                logs.append(f"Post {post_number}: {post_url}")
             
             return jsonify({"status": "success", "message": "All posts published!", "logs": logs})
             
@@ -211,10 +237,17 @@ def trigger_worker():
                 if now >= target_time:
                     # Time to post!
                     image_urn = None
-                    if item.get("image_path") and os.path.exists(item["image_path"]):
-                        image_urn = upload_local_image(item["image_path"])
+                    doc_urn = None
+                    media_path = item.get("media_path") or item.get("image_path") # Migrate old keys
+                    media_type = item.get("media_type") or "image"
                     
-                    post_url = schedule_post(item["text"], image_urn=image_urn)
+                    if media_path and os.path.exists(media_path):
+                        if media_type == "document" or (media_path.lower().endswith(".pdf")):
+                            doc_urn = upload_local_document(media_path)
+                        else:
+                            image_urn = upload_local_image(media_path)
+                    
+                    post_url = schedule_post(item["text"], image_urn=image_urn, document_urn=doc_urn)
                     item["status"] = "published"
                     item["published_at"] = now.isoformat()
                     item["post_url"] = post_url
@@ -238,24 +271,24 @@ def upload_images():
     if not files or files[0].filename == '':
         return jsonify({"status": "error", "message": "No files selected"})
 
-    images_dir = "data/images"
+    uploads_dir = "data/uploads"
     
-    # Clear existing images to start fresh for the batch
-    if os.path.exists(images_dir):
-        shutil.rmtree(images_dir)
-    os.makedirs(images_dir, exist_ok=True)
+    # Clear existing uploads to start fresh for the batch
+    if os.path.exists(uploads_dir):
+        shutil.rmtree(uploads_dir)
+    os.makedirs(uploads_dir, exist_ok=True)
 
-    allowed_extensions = {'.jpg', '.jpeg', '.png'}
+    allowed_extensions = {'.jpg', '.jpeg', '.png', '.pdf'}
     count = 0
     for i, file in enumerate(files):
         ext = os.path.splitext(file.filename)[1].lower()
         if ext in allowed_extensions:
             count += 1
-            # Rename to 1.jpg, 2.jpg... to match the batch order
+            # Rename to 1.jpg, 2.pdf... to match the batch order
             filename = f"{count}{ext}"
-            file.save(os.path.join(images_dir, filename))
+            file.save(os.path.join(uploads_dir, filename))
     
-    return jsonify({"status": "success", "message": f"Successfully uploaded and sequenced {count} images."})
+    return jsonify({"status": "success", "message": f"Successfully uploaded and sequenced {count} files (Images/PDFs)."})
 
 @app.route("/upload-single-image", methods=["POST"])
 @login_required
@@ -272,24 +305,25 @@ def upload_single_image():
     if not file or file.filename == '':
         return jsonify({"status": "error", "message": "No file selected"})
 
-    images_dir = "data/images"
-    os.makedirs(images_dir, exist_ok=True)
+    uploads_dir = "data/uploads"
+    os.makedirs(uploads_dir, exist_ok=True)
 
-    allowed_extensions = {'.jpg', '.jpeg', '.png'}
+    allowed_extensions = {'.jpg', '.jpeg', '.png', '.pdf'}
     ext = os.path.splitext(file.filename)[1].lower()
     if ext not in allowed_extensions:
         return jsonify({"status": "error", "message": "File type not supported"})
 
-    # To be safe, remove any existing image with different extensions for this same number
+    # To be safe, remove any existing file with different extensions for this same number
+    # This ensures that if we replace 1.jpg with 1.pdf, only 1.pdf remains.
     for e in allowed_extensions:
-        old_path = os.path.join(images_dir, f"{post_number}{e}")
+        old_path = os.path.join(uploads_dir, f"{post_number}{e}")
         if os.path.exists(old_path):
             os.remove(old_path)
             
     filename = f"{post_number}{ext}"
-    file.save(os.path.join(images_dir, filename))
+    file.save(os.path.join(uploads_dir, filename))
     
-    return jsonify({"status": "success", "message": f"Successfully replaced image #{post_number}."})
+    return jsonify({"status": "success", "message": f"Successfully replaced file #{post_number}."})
 
 @app.route("/queue")
 @login_required
