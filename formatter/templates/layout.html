@@ -11,8 +11,10 @@
         <header>
             <h1>🚀 LinkedIn Batch Scheduler</h1>
             {% if current_user.is_authenticated %}
-            <nav>
-                <a href="{{ url_for('logout') }}" class="btn btn-outline">Logout</a>
+            <nav style="display: flex; gap: 0.5rem; flex-wrap: wrap; justify-content: flex-end;">
+                <a href="{{ url_for('index') }}" class="btn btn-outline" style="text-decoration: none;">🏠 Home</a>
+                <a href="{{ url_for('view_queue') }}" class="btn btn-outline" style="text-decoration: none;">📋 Queue</a>
+                <a href="{{ url_for('logout') }}" class="btn btn-outline" style="border-color: var(--error-color); color: var(--error-color);">Logout</a>
             </nav>
             {% endif %}
         </header>
