@@ -1,7 +1,7 @@
 import os
 import secrets
 import shutil
-from flask import Flask, render_template, request, redirect, url_for, flash, jsonify
+from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, send_from_directory
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
 import json
 from datetime import datetime, timedelta
@@ -144,7 +144,6 @@ def run_step():
             if target_time_str:
                 queue = get_queue()
                 posts = process_batch_file("data/final_output.txt")
-                
                 # We need to know which file matches which post
                 for i, text in enumerate(posts):
                     post_number = i + 1
@@ -165,10 +164,20 @@ def run_step():
                                 media_type = "image"
                                 break
                     
+                    item_id = secrets.token_hex(4)
+                    queue_media_path = None
+                    
+                    # Copy media to permanent queue storage
+                    if media_path:
+                        os.makedirs("data/queue_media", exist_ok=True)
+                        ext = os.path.splitext(media_path)[1]
+                        queue_media_path = f"data/queue_media/{item_id}{ext}"
+                        shutil.copy2(media_path, queue_media_path)
+                    
                     queue.append({
-                        "id": secrets.token_hex(4),
+                        "id": item_id,
                         "text": text,
-                        "media_path": media_path,
+                        "media_path": queue_media_path,
                         "media_type": media_type,
                         "target_time": target_time_str,
                         "status": "pending",
@@ -331,11 +340,32 @@ def view_queue():
     queue = get_queue()
     return render_template("queue.html", queue=queue)
 
+@app.route("/queue-media/<path:filename>")
+@login_required
+def serve_queue_media(filename):
+    directory = os.path.join(app.root_path, "data/queue_media")
+    # For safety, ensure the path is correct
+    if filename.lower().endswith('.pdf'):
+        return send_from_directory(directory, filename, mimetype='application/pdf')
+    return send_from_directory(directory, filename)
+
 @app.route("/delete-queue-item/<item_id>")
 @login_required
 def delete_queue_item(item_id):
     queue = get_queue()
-    new_queue = [item for item in queue if item["id"] != item_id]
+    new_queue = []
+    for item in queue:
+        if item["id"] == item_id:
+            # Delete physical file from queue_media
+            media_path = item.get("media_path")
+            if media_path and os.path.exists(media_path):
+                try:
+                    os.remove(media_path)
+                except:
+                    pass
+        else:
+            new_queue.append(item)
+            
     save_queue(new_queue)
     flash("Item removed from queue")
     return redirect(url_for("view_queue"))
