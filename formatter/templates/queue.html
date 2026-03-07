@@ -2,9 +2,8 @@
 
 {% block content %}
 <div class="card">
-    <header style="margin-bottom: 1rem;">
+    <header>
         <h2>📋 Post Queue</h2>
-        <a href="{{ url_for('index') }}" class="btn btn-outline">Back to Dashboard</a>
     </header>
     
     <p style="font-size: 0.85rem; color: #57606a;">
@@ -33,14 +32,38 @@
                         {{ item.target_time.replace('T', ' ') }}
                     </td>
                     <td style="padding: 0.8rem; font-size: 0.85rem; max-width: 300px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                        {% if item.media_path or item.image_path %}
+                        <span style="background: rgba(35, 134, 54, 0.15); color: #238636; border: 1px solid #238636; border-radius: 4px; padding: 2px 6px; font-size: 0.7rem; margin-right: 0.5rem; display: inline-flex; align-items: center; gap: 4px;">
+                            📎 {{ 'PDF' if item.media_type == 'document' or (item.media_path and item.media_path.lower().endswith('.pdf')) else 'IMG' }}
+                        </span>
+                        {% endif %}
                         {{ item.text }}
                     </td>
-                    <td style="padding: 0.8rem;">
+                    <td style="padding: 0.8rem; display: flex; gap: 0.5rem;">
+                        <button onclick="togglePreview('{{ item.id }}')" class="btn btn-outline" style="padding: 0.3rem 0.6rem; font-size: 0.75rem;">👁️ Preview</button>
                         {% if item.status == 'pending' %}
-                        <a href="{{ url_for('delete_queue_item', item_id=item.id) }}" class="btn btn-outline" style="color: var(--error-color); border-color: var(--error-color); padding: 0.3rem 0.6rem; font-size: 0.75rem;">Cancel</a>
+                        <a href="{{ url_for('delete_queue_item', item_id=item.id) }}" class="btn btn-outline" style="color: var(--error-color); border-color: var(--error-color); padding: 0.3rem 0.6rem; font-size: 0.75rem;" onclick="return confirm('Cancel this post?')">Cancel</a>
                         {% elif item.post_url %}
                         <a href="{{ item.post_url }}" target="_blank" class="btn btn-primary" style="padding: 0.3rem 0.6rem; font-size: 0.75rem;">View Post</a>
                         {% endif %}
+                    </td>
+                </tr>
+                <tr id="preview-{{ item.id }}" style="display: none; background: #0d1117; border-bottom: 1px solid var(--border-color);">
+                    <td colspan="4" style="padding: 1.5rem;">
+                        <div style="display: flex; gap: 1.5rem; flex-direction: column;">
+                            <div style="background: var(--bg-color); border: 1px solid var(--border-color); border-radius: 6px; padding: 1rem; font-family: monospace; white-space: pre-wrap; font-size: 0.9rem;">{{ item.text }}</div>
+                            
+                            {% if item.media_path %}
+                            <div style="border-top: 1px solid var(--border-color); padding-top: 1rem;">
+                                <p style="font-size: 0.8rem; color: #8b949e; margin-bottom: 0.5rem;"><strong>Media Attachment:</strong></p>
+                                {% if item.media_type == 'document' or item.media_path.lower().endswith('.pdf') %}
+                                <a href="{{ url_for('serve_queue_media', filename=item.media_path.split('/')[-1]) }}" target="_blank" class="btn btn-outline" style="font-size: 0.8rem;">📦 Open PDF Document</a>
+                                {% else %}
+                                <img src="{{ url_for('serve_queue_media', filename=item.media_path.split('/')[-1]) }}" style="max-width: 100%; border-radius: 6px; border: 1px solid var(--border-color); max-height: 400px; object-fit: contain;">
+                                {% endif %}
+                            </div>
+                            {% endif %}
+                        </div>
                     </td>
                 </tr>
                 {% else %}
@@ -52,4 +75,15 @@
         </table>
     </div>
 </div>
+
+<script>
+function togglePreview(id) {
+    const row = document.getElementById('preview-' + id);
+    if (row.style.display === 'none') {
+        row.style.display = 'table-row';
+    } else {
+        row.style.display = 'none';
+    }
+}
+</script>
 {% endblock %}

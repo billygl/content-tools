@@ -2,18 +2,21 @@
 
 This guide details the steps to deploy the LinkedIn Batch Scheduler to your **YOUR_USERNAME** PythonAnywhere account.
 
-## 1. Upload Your Files
-1. Log in to [PythonAnywhere](https://www.pythonanywhere.com/).
-2. Go to the **Files** tab.
-3. Create a new directory named `formatter` at `/home/YOUR_USERNAME/formatter`.
-4. Upload the following from your local `formatter/` folder:
-   - `app.py`
-   - `formatter.py`
-   - `linkedin_api.py`
-   - `.env` (ensure it has `WEB_USERNAME`, `WEB_PASSWORD`, `FLASK_SECRET_KEY`, and a new `WORKER_TOKEN`)
-   - `static/` (folder and its contents)
-   - `templates/` (folder and its contents)
-   - `data/` (folder, specifically `data/images` if you have them)
+## 1. Deploy via Git (Preferred)
+The easiest way to get your code onto PythonAnywhere is to clone your GitHub repository:
+1. Log in to your PythonAnywhere dashboard and go to the **Consoles** tab.
+2. Open a **Bash** console.
+3. Run the following command:
+   ```bash
+   git clone https://github.com/YOUR_USERNAME/content-tools.git tools
+   ```
+4. **Important**: Since `.env` is gitignored, you MUST create it manually:
+   - Go to the **Files** tab.
+   - Navigate to `/home/YOUR_USERNAME/tools/formatter`.
+   - Create a new file named `.env` and paste your production credentials (LinkedIn tokens, Gemini API key, `WEB_USERNAME`, `WEB_PASSWORD`, `FLASK_SECRET_KEY`, and `WORKER_TOKEN`).
+
+## 1.1 Manual Upload (Alternative)
+If you prefer not to use Git, you can still upload files via the **Files** tab...
 
 ## 2. Set Up the Virtual Environment
 1. Go to the **Consoles** tab and open a **Bash** console.
@@ -31,9 +34,9 @@ This guide details the steps to deploy the LinkedIn Batch Scheduler to your **YO
 5. Click **Next** to finish the wizard.
 
 ## 4. Configure Web App Paths
-In the **Web** tab, update these sections:
-- **Source code**: `/home/YOUR_USERNAME/formatter`
-- **Working directory**: `/home/YOUR_USERNAME/formatter`
+Since the LinkedIn tool is in a **subdirectory** of your repo, you must point to that specific folder:
+- **Source code**: `/home/YOUR_USERNAME/tools/formatter`
+- **Working directory**: `/home/YOUR_USERNAME/tools/formatter`
 - **Virtualenv**: `/home/YOUR_USERNAME/.virtualenvs/linkedin-env`
 
 ## 5. Update WSGI Configuration
@@ -45,8 +48,8 @@ import sys
 import os
 from dotenv import load_dotenv
 
-# Path to your project
-project_home = '/home/YOUR_USERNAME/formatter'
+# Path to your project (Note the /tools/formatter nesting)
+project_home = '/home/YOUR_USERNAME/tools/formatter'
 if project_home not in sys.path:
     sys.path.append(project_home)
 
@@ -76,6 +79,21 @@ Since you are on a free account, you'll use **GitHub Actions** to trigger the qu
 1. Go back to the **Web** tab.
 2. Click the green **Reload YOUR_USERNAME.pythonanywhere.com** button.
 3. Visit [YOUR_USERNAME.pythonanywhere.com](http://YOUR_USERNAME.pythonanywhere.com) and log in!
+
+## 8. Quick Refresh (After Code Changes)
+Whenever you push new changes from your computer to GitHub, run these commands in your PythonAnywhere **Bash** console to update your app:
+
+1. **Pull the latest code**:
+   ```bash
+   cd ~/tools/formatter
+   git pull origin feature/linkedin-batch-scheduler
+   ```
+
+2. **Restart the Web Server** (The "Touch" trick):
+   ```bash
+   touch /var/www/YOUR_USERNAME_pythonanywhere_com_wsgi.py
+   ```
+   *(Note: Replace `YOUR_USERNAME` with your actual username. This command is the same as clicking the green 'Reload' button in the Web tab).*
 
 ---
 **Note**: Ensure your `.env` file on PythonAnywhere contains your production `GEMINI_API_KEY` and LinkedIn tokens.

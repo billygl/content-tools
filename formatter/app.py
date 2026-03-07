@@ -1,13 +1,13 @@
 import os
 import secrets
-from flask import Flask, render_template, request, redirect, url_for, flash, jsonify
+import shutil
+from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, send_from_directory
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
 import json
 from datetime import datetime, timedelta
 from dotenv import load_dotenv, set_key
 from formatter import gemini_highlight, apply_bold, process_batch_file, save_formatted_posts
-from linkedin_api import upload_local_image, schedule_post
-from datetime import datetime, timedelta
+from linkedin_api import upload_local_image, upload_local_document, schedule_post
 
 load_dotenv()
 
@@ -84,10 +84,25 @@ def index():
 @login_required
 def save():
     content = request.form.get("content")
+    step = request.form.get("step", "input") # default to input
+    
+    filename_map = {
+        "input": "data/input.txt",
+        "gemini": "data/gemini_output.txt",
+        "format": "data/final_output.txt"
+    }
+    
+    filename = filename_map.get(step, "data/input.txt")
+    
     os.makedirs("data", exist_ok=True)
-    with open("data/input.txt", "w", encoding="utf-8") as f:
+    with open(filename, "w", encoding="utf-8") as f:
         f.write(content)
-    flash("Input file saved successfully")
+    
+    # Check if AJAX request
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.is_json:
+        return jsonify({"status": "success", "message": f"{step.capitalize()} saved successfully"})
+        
+    flash(f"{step.capitalize()} file saved successfully")
     return redirect(url_for("index"))
 
 def get_queue():
@@ -129,21 +144,41 @@ def run_step():
             if target_time_str:
                 queue = get_queue()
                 posts = process_batch_file("data/final_output.txt")
-                
-                # We need to know which image matches which post
+                # We need to know which file matches which post
                 for i, text in enumerate(posts):
                     post_number = i + 1
-                    image_path = None
-                    for ext in ['.jpg', '.jpeg', '.png']:
-                        path = os.path.join("data/images", f"{post_number}{ext}")
-                        if os.path.exists(path):
-                            image_path = path
-                            break
+                    media_path = None
+                    media_type = None
+                    
+                    # 1. Check for PDF first (Precedence)
+                    pdf_path = os.path.join("data/uploads", f"{post_number}.pdf")
+                    if os.path.exists(pdf_path):
+                        media_path = pdf_path
+                        media_type = "document"
+                    else:
+                        # 2. Check for Images
+                        for ext in ['.jpg', '.jpeg', '.png']:
+                            path = os.path.join("data/uploads", f"{post_number}{ext}")
+                            if os.path.exists(path):
+                                media_path = path
+                                media_type = "image"
+                                break
+                    
+                    item_id = secrets.token_hex(4)
+                    queue_media_path = None
+                    
+                    # Copy media to permanent queue storage
+                    if media_path:
+                        os.makedirs("data/queue_media", exist_ok=True)
+                        ext = os.path.splitext(media_path)[1]
+                        queue_media_path = f"data/queue_media/{item_id}{ext}"
+                        shutil.copy2(media_path, queue_media_path)
                     
                     queue.append({
-                        "id": secrets.token_hex(4),
+                        "id": item_id,
                         "text": text,
-                        "image_path": image_path,
+                        "media_path": queue_media_path,
+                        "media_type": media_type,
                         "target_time": target_time_str,
                         "status": "pending",
                         "created_at": datetime.now().isoformat()
@@ -152,24 +187,39 @@ def run_step():
                 save_queue(queue)
                 return jsonify({"status": "success", "message": f"Batch scheduled for {target_time_str}!"})
 
-            # Immediate post (original behavior)
+            # Immediate post
             posts = process_batch_file("data/final_output.txt")
-            images_dir = "data/images"
+            uploads_dir = "data/uploads"
             logs = []
             for i, text in enumerate(posts):
-                image_path = None
-                for ext in ['.jpg', '.jpeg', '.png']:
-                    path = os.path.join(images_dir, f"{i+1}{ext}")
-                    if os.path.exists(path):
-                        image_path = path
-                        break
+                post_number = i + 1
+                media_path = None
+                media_type = None
+                
+                # Check PDF
+                pdf_path = os.path.join(uploads_dir, f"{post_number}.pdf")
+                if os.path.exists(pdf_path):
+                    media_path = pdf_path
+                    media_type = "document"
+                else:
+                    # Check Images
+                    for ext in ['.jpg', '.jpeg', '.png']:
+                        path = os.path.join(uploads_dir, f"{post_number}{ext}")
+                        if os.path.exists(path):
+                            media_path = path
+                            media_type = "image"
+                            break
                 
                 image_urn = None
-                if image_path:
-                    image_urn = upload_local_image(image_path)
+                doc_urn = None
+                if media_path:
+                    if media_type == "document":
+                        doc_urn = upload_local_document(media_path)
+                    else:
+                        image_urn = upload_local_image(media_path)
                 
-                post_url = schedule_post(text, image_urn=image_urn)
-                logs.append(f"Post {i+1}: {post_url}")
+                post_url = schedule_post(text, image_urn=image_urn, document_urn=doc_urn)
+                logs.append(f"Post {post_number}: {post_url}")
             
             return jsonify({"status": "success", "message": "All posts published!", "logs": logs})
             
@@ -196,10 +246,17 @@ def trigger_worker():
                 if now >= target_time:
                     # Time to post!
                     image_urn = None
-                    if item.get("image_path") and os.path.exists(item["image_path"]):
-                        image_urn = upload_local_image(item["image_path"])
+                    doc_urn = None
+                    media_path = item.get("media_path") or item.get("image_path") # Migrate old keys
+                    media_type = item.get("media_type") or "image"
                     
-                    post_url = schedule_post(item["text"], image_urn=image_urn)
+                    if media_path and os.path.exists(media_path):
+                        if media_type == "document" or (media_path.lower().endswith(".pdf")):
+                            doc_urn = upload_local_document(media_path)
+                        else:
+                            image_urn = upload_local_image(media_path)
+                    
+                    post_url = schedule_post(item["text"], image_urn=image_urn, document_urn=doc_urn)
                     item["status"] = "published"
                     item["published_at"] = now.isoformat()
                     item["post_url"] = post_url
@@ -213,17 +270,102 @@ def trigger_worker():
         
     return jsonify({"status": "success", "processed": published_any, "logs": logs})
 
+@app.route("/upload-images", methods=["POST"])
+@login_required
+def upload_images():
+    if 'images' not in request.files:
+        return jsonify({"status": "error", "message": "No files uploaded"})
+    
+    files = request.files.getlist('images')
+    if not files or files[0].filename == '':
+        return jsonify({"status": "error", "message": "No files selected"})
+
+    uploads_dir = "data/uploads"
+    
+    # Clear existing uploads to start fresh for the batch
+    if os.path.exists(uploads_dir):
+        shutil.rmtree(uploads_dir)
+    os.makedirs(uploads_dir, exist_ok=True)
+
+    allowed_extensions = {'.jpg', '.jpeg', '.png', '.pdf'}
+    count = 0
+    for i, file in enumerate(files):
+        ext = os.path.splitext(file.filename)[1].lower()
+        if ext in allowed_extensions:
+            count += 1
+            # Rename to 1.jpg, 2.pdf... to match the batch order
+            filename = f"{count}{ext}"
+            file.save(os.path.join(uploads_dir, filename))
+    
+    return jsonify({"status": "success", "message": f"Successfully uploaded and sequenced {count} files (Images/PDFs)."})
+
+@app.route("/upload-single-image", methods=["POST"])
+@login_required
+def upload_single_image():
+    if 'image' not in request.files:
+        return jsonify({"status": "error", "message": "No file uploaded"})
+    
+    file = request.files['image']
+    post_number = request.form.get('post_number')
+    
+    if not post_number or not post_number.isdigit():
+        return jsonify({"status": "error", "message": "Invalid post number"})
+    
+    if not file or file.filename == '':
+        return jsonify({"status": "error", "message": "No file selected"})
+
+    uploads_dir = "data/uploads"
+    os.makedirs(uploads_dir, exist_ok=True)
+
+    allowed_extensions = {'.jpg', '.jpeg', '.png', '.pdf'}
+    ext = os.path.splitext(file.filename)[1].lower()
+    if ext not in allowed_extensions:
+        return jsonify({"status": "error", "message": "File type not supported"})
+
+    # To be safe, remove any existing file with different extensions for this same number
+    # This ensures that if we replace 1.jpg with 1.pdf, only 1.pdf remains.
+    for e in allowed_extensions:
+        old_path = os.path.join(uploads_dir, f"{post_number}{e}")
+        if os.path.exists(old_path):
+            os.remove(old_path)
+            
+    filename = f"{post_number}{ext}"
+    file.save(os.path.join(uploads_dir, filename))
+    
+    return jsonify({"status": "success", "message": f"Successfully replaced file #{post_number}."})
+
 @app.route("/queue")
 @login_required
 def view_queue():
     queue = get_queue()
     return render_template("queue.html", queue=queue)
 
+@app.route("/queue-media/<path:filename>")
+@login_required
+def serve_queue_media(filename):
+    directory = os.path.join(app.root_path, "data/queue_media")
+    # For safety, ensure the path is correct
+    if filename.lower().endswith('.pdf'):
+        return send_from_directory(directory, filename, mimetype='application/pdf')
+    return send_from_directory(directory, filename)
+
 @app.route("/delete-queue-item/<item_id>")
 @login_required
 def delete_queue_item(item_id):
     queue = get_queue()
-    new_queue = [item for item in queue if item["id"] != item_id]
+    new_queue = []
+    for item in queue:
+        if item["id"] == item_id:
+            # Delete physical file from queue_media
+            media_path = item.get("media_path")
+            if media_path and os.path.exists(media_path):
+                try:
+                    os.remove(media_path)
+                except:
+                    pass
+        else:
+            new_queue.append(item)
+            
     save_queue(new_queue)
     flash("Item removed from queue")
     return redirect(url_for("view_queue"))

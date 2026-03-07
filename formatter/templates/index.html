@@ -2,10 +2,30 @@
 
 {% block content %}
 <div class="card">
+    <h2>📸 Batch Media Upload</h2>
+    <p style="font-size: 0.85rem; color: #8b949e;">Select all images or <strong>PDF documents</strong> for your batch. PDFs take priority and are uploaded as LinkedIn Documents (carousels). They will be sequenced 1, 2, 3... based on your selection.</p>
+    <div style="display: flex; gap: 0.75rem; align-items: center; margin-top: 1rem; flex-wrap: wrap;">
+        <input type="file" id="image_input" multiple accept="image/*,.pdf" class="btn btn-outline" style="flex: 1; min-width: 150px;">
+        <button onclick="bulkUploadImages(this)" class="btn btn-primary" style="flex: 1; min-width: 120px;">📤 Upload Batch</button>
+    </div>
+    
+    <div style="border-top: 1px solid var(--border-color); margin-top: 1.5rem; padding-top: 1rem;">
+        <p style="font-size: 0.85rem; color: #8b949e; margin-bottom: 0.5rem;"><strong>Replace a specific file (Image or PDF):</strong></p>
+        <div style="display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center;">
+            <input type="number" id="replace_index" placeholder="No." style="width: 60px; padding: 0.4rem; border: 1px solid var(--border-color); border-radius: 4px;">
+            <input type="file" id="single_image_input" accept="image/*,.pdf" class="btn btn-outline" style="flex: 1; min-width: 150px;">
+            <button onclick="replaceSingleImage(this)" class="btn btn-outline" style="flex: 1;">🔄 Replace</button>
+        </div>
+    </div>
+    
+    <div id="upload-status" style="margin-top: 0.5rem; font-size: 0.85rem;"></div>
+</div>
+
+<div class="card">
     <h2>📝 Batch Input Editor</h2>
     <p style="font-size: 0.85rem; color: #8b949e;">Edit your posts here. Separate each post with exactly 5 dashes: <code>-----</code></p>
     <form action="{{ url_for('save') }}" method="POST">
-        <textarea name="content" rows="15">{{ content }}</textarea>
+        <textarea id="editor_textarea" name="content" rows="15">{{ content }}</textarea>
         <div style="margin-top: 1rem;">
             <button type="submit" class="btn btn-primary">💾 Save Input File</button>
         </div>
@@ -19,13 +39,13 @@
     <div class="step-controls">
         <button onclick="runStep('gemini', this)" class="btn btn-outline">1. Gemini Highlight</button>
         <button onclick="runStep('format', this)" class="btn btn-outline">2. Apply Bold</button>
-        <div style="display: flex; gap: 0.5rem; align-items: center; border: 1px solid var(--border-color); padding: 0.4rem; border-radius: 8px; background: #f8f9fa;">
-            <button onclick="runStep('post', this)" class="btn btn-success" style="font-size: 0.8rem; padding: 0.4rem 0.8rem;">🚀 Post Now</button>
-            <span style="color: var(--border-color); font-weight: 300;">|</span>
-            <input type="datetime-local" id="schedule_time" style="padding: 0.3rem; border: 1px solid var(--border-color); border-radius: 4px; font-size: 0.75rem;">
-            <button onclick="schedulePost(this)" class="btn btn-outline" style="font-size: 0.8rem; padding: 0.4rem 0.8rem;">📅 Schedule</button>
+        <div class="schedule-group" style="display: flex; gap: 0.5rem; align-items: center; border: 1px solid var(--border-color); padding: 0.4rem; border-radius: 8px; background: #f8f9fa; flex-wrap: wrap;">
+            <button onclick="runStep('post', this)" class="btn btn-success" style="font-size: 0.8rem; padding: 0.4rem 0.8rem; flex: 1; min-width: 100px;">🚀 Post Now</button>
+            <span class="desktop-only" style="color: var(--border-color); font-weight: 300;">|</span>
+            <input type="datetime-local" id="schedule_time" style="padding: 0.3rem; border: 1px solid var(--border-color); border-radius: 4px; font-size: 0.75rem; flex: 1; min-width: 150px;">
+            <button onclick="schedulePost(this)" class="btn btn-outline" style="font-size: 0.8rem; padding: 0.4rem 0.8rem; flex: 1; min-width: 100px;">📅 Schedule</button>
         </div>
-        <a href="{{ url_for('view_queue') }}" class="btn btn-outline" style="margin-left: auto; text-decoration: none;">📋 View Queue</a>
+        </div>
     </div>
     
     <div id="status-box" style="margin-top: 1.5rem; display: none;">
@@ -34,18 +54,104 @@
     </div>
 </div>
 
-<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem;">
+<div class="preview-grid">
     <div class="card">
-        <h3>🔍 Step 1 Preview (Gemini)</h3>
-        <div class="output-preview">{{ gemini_output if gemini_output else "No output yet." }}</div>
+        <header>
+            <h3>🔍 Step 1 Preview (Gemini)</h3>
+            <button onclick="saveContent('gemini', 'gemini_textarea', this)" class="btn btn-outline" style="font-size: 0.75rem; padding: 0.2rem 0.5rem;">💾 Save Changes</button>
+        </header>
+        <textarea id="gemini_textarea" class="output-preview" style="width: 100%; height: 300px; margin-top: 0.5rem;">{{ gemini_output if gemini_output else "No output yet." }}</textarea>
     </div>
     <div class="card">
-        <h3>✅ Step 2 Preview (Final Bold)</h3>
-        <div class="output-preview">{{ final_output if final_output else "No output yet." }}</div>
+        <header>
+            <h3>✅ Step 2 Preview (Final Bold)</h3>
+            <button onclick="saveContent('format', 'final_textarea', this)" class="btn btn-outline" style="font-size: 0.75rem; padding: 0.2rem 0.5rem;">💾 Save Changes</button>
+        </header>
+        <textarea id="final_textarea" class="output-preview" style="width: 100%; height: 300px; margin-top: 0.5rem;">{{ final_output if final_output else "No output yet." }}</textarea>
     </div>
 </div>
 
 <script>
+async function replaceSingleImage(btn) {
+    const input = document.getElementById('single_image_input');
+    const index = document.getElementById('replace_index').value;
+    const status = document.getElementById('upload-status');
+    
+    if (input.files.length === 0 || !index) {
+        alert("Please select a file and enter the image number.");
+        return;
+    }
+
+    const originalText = btn.innerText;
+    btn.innerText = "⏳ Replacing...";
+    btn.disabled = true;
+
+    const formData = new FormData();
+    formData.append('image', input.files[0]);
+    formData.append('post_number', index);
+
+    try {
+        const response = await fetch("{{ url_for('upload_single_image') }}", {
+            method: 'POST',
+            body: formData
+        });
+        const data = await response.json();
+        if (data.status === 'success') {
+            status.innerText = "✅ " + data.message;
+            status.style.color = "var(--success-color)";
+            setTimeout(() => window.location.reload(), 1500);
+        } else {
+            status.innerText = "❌ " + data.message;
+            status.style.color = "var(--error-color)";
+        }
+    } catch (err) {
+        status.innerText = "❌ Replace failed.";
+    } finally {
+        btn.innerText = originalText;
+        btn.disabled = false;
+    }
+}
+
+async function bulkUploadImages(btn) {
+    const input = document.getElementById('image_input');
+    const status = document.getElementById('upload-status');
+    if (input.files.length === 0) {
+        alert("Please select images first.");
+        return;
+    }
+
+    const originalText = btn.innerText;
+    btn.innerText = "⏳ Uploading...";
+    btn.disabled = true;
+    status.innerText = "Processing images...";
+
+    const formData = new FormData();
+    for (let i = 0; i < input.files.length; i++) {
+        formData.append('images', input.files[i]);
+    }
+
+    try {
+        const response = await fetch("{{ url_for('upload_images') }}", {
+            method: 'POST',
+            body: formData
+        });
+        const data = await response.json();
+        if (data.status === 'success') {
+            status.innerText = "✅ " + data.message;
+            status.style.color = "var(--success-color)";
+            setTimeout(() => window.location.reload(), 1500);
+        } else {
+            status.innerText = "❌ " + data.message;
+            status.style.color = "var(--error-color)";
+        }
+    } catch (err) {
+        status.innerText = "❌ Upload failed.";
+    } finally {
+        btn.innerText = originalText;
+        btn.disabled = false;
+    }
+}
+
 async function schedulePost(btn) {
     const time = document.getElementById('schedule_time').value;
     if (!time) {
@@ -54,8 +160,22 @@ async function schedulePost(btn) {
     }
     
     const originalText = btn.innerText;
-    btn.innerText = "⌛ Scheduling...";
+    btn.innerText = "⌛ Saving & Scheduling...";
     btn.disabled = true;
+
+    // Auto-save the Step 2 content (Final Bold) before scheduling
+    const final_editor = document.getElementById('final_textarea');
+    if (final_editor) {
+        try {
+            await fetch("{{ url_for('save') }}", {
+                method: 'POST',
+                headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+                body: new URLSearchParams({'content': final_editor.value, 'step': 'format'})
+            });
+        } catch (e) {
+            console.error("Auto-save failed:", e);
+        }
+    }
 
     try {
         const formData = new FormData();
@@ -82,10 +202,61 @@ async function schedulePost(btn) {
     }
 }
 
+async function saveContent(step, textareaId, btn) {
+    const content = document.getElementById(textareaId).value;
+    const originalText = btn.innerText;
+    btn.innerText = "⏳ Saving...";
+    btn.disabled = true;
+
+    try {
+        const response = await fetch("{{ url_for('save') }}", {
+            method: 'POST',
+            headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+            body: new URLSearchParams({'content': content, 'step': step})
+        });
+        const data = await response.json();
+        if (data.status === 'success') {
+            btn.innerText = "✅ Saved";
+            setTimeout(() => btn.innerText = originalText, 2000);
+        }
+    } catch (e) {
+        alert("Save failed");
+    } finally {
+        btn.disabled = false;
+    }
+}
+
 async function runStep(step, btn) {
     const originalText = btn.innerText;
-    btn.innerText = "⏳ Running...";
+    btn.innerText = "⏳ Saving & Running...";
     btn.disabled = true;
+
+    // Auto-save the RELEVANT content based on the step being run
+    let contentToSave = "";
+    let stepToSave = "";
+    
+    if (step === 'gemini') {
+        contentToSave = document.getElementById('editor_textarea').value;
+        stepToSave = 'input';
+    } else if (step === 'format') {
+        contentToSave = document.getElementById('gemini_textarea').value;
+        stepToSave = 'gemini';
+    } else if (step === 'post') {
+        contentToSave = document.getElementById('final_textarea').value;
+        stepToSave = 'format';
+    }
+
+    if (contentToSave) {
+        try {
+            await fetch("{{ url_for('save') }}", {
+                method: 'POST',
+                headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+                body: new URLSearchParams({'content': contentToSave, 'step': stepToSave})
+            });
+        } catch (e) {
+            console.error("Auto-save failed:", e);
+        }
+    }
     
     const statusBox = document.getElementById('status-box');
     const statusMsg = document.getElementById('status-message');
