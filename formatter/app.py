@@ -1,5 +1,6 @@
 import os
 import secrets
+import shutil
 from flask import Flask, render_template, request, redirect, url_for, flash, jsonify
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
 import json
@@ -7,7 +8,6 @@ from datetime import datetime, timedelta
 from dotenv import load_dotenv, set_key
 from formatter import gemini_highlight, apply_bold, process_batch_file, save_formatted_posts
 from linkedin_api import upload_local_image, schedule_post
-from datetime import datetime, timedelta
 
 load_dotenv()
 
@@ -212,6 +212,35 @@ def trigger_worker():
         save_queue(queue)
         
     return jsonify({"status": "success", "processed": published_any, "logs": logs})
+
+@app.route("/upload-images", methods=["POST"])
+@login_required
+def upload_images():
+    if 'images' not in request.files:
+        return jsonify({"status": "error", "message": "No files uploaded"})
+    
+    files = request.files.getlist('images')
+    if not files or files[0].filename == '':
+        return jsonify({"status": "error", "message": "No files selected"})
+
+    images_dir = "data/images"
+    
+    # Clear existing images to start fresh for the batch
+    if os.path.exists(images_dir):
+        shutil.rmtree(images_dir)
+    os.makedirs(images_dir, exist_ok=True)
+
+    allowed_extensions = {'.jpg', '.jpeg', '.png'}
+    count = 0
+    for i, file in enumerate(files):
+        ext = os.path.splitext(file.filename)[1].lower()
+        if ext in allowed_extensions:
+            count += 1
+            # Rename to 1.jpg, 2.jpg... to match the batch order
+            filename = f"{count}{ext}"
+            file.save(os.path.join(images_dir, filename))
+    
+    return jsonify({"status": "success", "message": f"Successfully uploaded and sequenced {count} images."})
 
 @app.route("/queue")
 @login_required

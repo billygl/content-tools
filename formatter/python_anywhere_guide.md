@@ -2,18 +2,21 @@
 
 This guide details the steps to deploy the LinkedIn Batch Scheduler to your **YOUR_USERNAME** PythonAnywhere account.
 
-## 1. Upload Your Files
-1. Log in to [PythonAnywhere](https://www.pythonanywhere.com/).
-2. Go to the **Files** tab.
-3. Create a new directory named `formatter` at `/home/YOUR_USERNAME/formatter`.
-4. Upload the following from your local `formatter/` folder:
-   - `app.py`
-   - `formatter.py`
-   - `linkedin_api.py`
-   - `.env` (ensure it has `WEB_USERNAME`, `WEB_PASSWORD`, `FLASK_SECRET_KEY`, and a new `WORKER_TOKEN`)
-   - `static/` (folder and its contents)
-   - `templates/` (folder and its contents)
-   - `data/` (folder, specifically `data/images` if you have them)
+## 1. Deploy via Git (Preferred)
+The easiest way to get your code onto PythonAnywhere is to clone your GitHub repository:
+1. Log in to your PythonAnywhere dashboard and go to the **Consoles** tab.
+2. Open a **Bash** console.
+3. Run the following command:
+   ```bash
+   git clone https://github.com/YOUR_USERNAME/content-tools.git formatter
+   ```
+4. **Important**: Since `.env` is gitignored, you MUST create it manually:
+   - Go to the **Files** tab.
+   - Navigate to `/home/YOUR_USERNAME/formatter`.
+   - Create a new file named `.env` and paste your production credentials (LinkedIn tokens, Gemini API key, `WEB_USERNAME`, `WEB_PASSWORD`, `FLASK_SECRET_KEY`, and `WORKER_TOKEN`).
+
+## 1.1 Manual Upload (Alternative)
+If you prefer not to use Git, you can still upload files via the **Files** tab...
 
 ## 2. Set Up the Virtual Environment
 1. Go to the **Consoles** tab and open a **Bash** console.

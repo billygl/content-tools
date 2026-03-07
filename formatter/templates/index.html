@@ -2,6 +2,16 @@
 
 {% block content %}
 <div class="card">
+    <h2>📸 Batch Image Upload</h2>
+    <p style="font-size: 0.85rem; color: #8b949e;">Select all images for your batch. They will be automatically renamed to 1.jpg, 2.jpg... based on your selection order.</p>
+    <div style="display: flex; gap: 1rem; align-items: center; margin-top: 1rem;">
+        <input type="file" id="image_input" multiple accept="image/*" class="btn btn-outline" style="flex: 1;">
+        <button onclick="bulkUploadImages(this)" class="btn btn-primary">📤 Upload Batch</button>
+    </div>
+    <div id="upload-status" style="margin-top: 0.5rem; font-size: 0.85rem;"></div>
+</div>
+
+<div class="card">
     <h2>📝 Batch Input Editor</h2>
     <p style="font-size: 0.85rem; color: #8b949e;">Edit your posts here. Separate each post with exactly 5 dashes: <code>-----</code></p>
     <form action="{{ url_for('save') }}" method="POST">
@@ -46,6 +56,46 @@
 </div>
 
 <script>
+async function bulkUploadImages(btn) {
+    const input = document.getElementById('image_input');
+    const status = document.getElementById('upload-status');
+    if (input.files.length === 0) {
+        alert("Please select images first.");
+        return;
+    }
+
+    const originalText = btn.innerText;
+    btn.innerText = "⏳ Uploading...";
+    btn.disabled = true;
+    status.innerText = "Processing images...";
+
+    const formData = new FormData();
+    for (let i = 0; i < input.files.length; i++) {
+        formData.append('images', input.files[i]);
+    }
+
+    try {
+        const response = await fetch("{{ url_for('upload_images') }}", {
+            method: 'POST',
+            body: formData
+        });
+        const data = await response.json();
+        if (data.status === 'success') {
+            status.innerText = "✅ " + data.message;
+            status.style.color = "var(--success-color)";
+            setTimeout(() => window.location.reload(), 1500);
+        } else {
+            status.innerText = "❌ " + data.message;
+            status.style.color = "var(--error-color)";
+        }
+    } catch (err) {
+        status.innerText = "❌ Upload failed.";
+    } finally {
+        btn.innerText = originalText;
+        btn.disabled = false;
+    }
+}
+
 async function schedulePost(btn) {
     const time = document.getElementById('schedule_time').value;
     if (!time) {
