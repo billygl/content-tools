@@ -1,1 +1,4 @@
 data/
+__pycache__/
+images/
+formatter/text.txt

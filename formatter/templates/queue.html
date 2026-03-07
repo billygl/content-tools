@@ -1,0 +1,55 @@
+{% extends "layout.html" %}
+
+{% block content %}
+<div class="card">
+    <header style="margin-bottom: 1rem;">
+        <h2>📋 Post Queue</h2>
+        <a href="{{ url_for('index') }}" class="btn btn-outline">Back to Dashboard</a>
+    </header>
+    
+    <p style="font-size: 0.85rem; color: #57606a;">
+        Articles listed here are waiting for the worker to process them. 
+        The worker is triggered every 30 minutes via GitHub Actions.
+    </p>
+
+    <div style="overflow-x: auto;">
+        <table style="width: 100%; border-collapse: collapse; margin-top: 1rem;">
+            <thead>
+                <tr style="border-bottom: 2px solid var(--border-color); text-align: left;">
+                    <th style="padding: 0.8rem;">Status</th>
+                    <th style="padding: 0.8rem;">Target Time</th>
+                    <th style="padding: 0.8rem;">Snippet</th>
+                    <th style="padding: 0.8rem;">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in queue|sort(attribute='target_time') %}
+                <tr style="border-bottom: 1px solid var(--border-color);">
+                    <td style="padding: 0.8rem;">
+                        <span class="status-indicator {{ 'status-success' if item.status == 'published' else 'status-pending' }}"></span>
+                        {{ item.status|capitalize }}
+                    </td>
+                    <td style="padding: 0.8rem; font-size: 0.85rem;">
+                        {{ item.target_time.replace('T', ' ') }}
+                    </td>
+                    <td style="padding: 0.8rem; font-size: 0.85rem; max-width: 300px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                        {{ item.text }}
+                    </td>
+                    <td style="padding: 0.8rem;">
+                        {% if item.status == 'pending' %}
+                        <a href="{{ url_for('delete_queue_item', item_id=item.id) }}" class="btn btn-outline" style="color: var(--error-color); border-color: var(--error-color); padding: 0.3rem 0.6rem; font-size: 0.75rem;">Cancel</a>
+                        {% elif item.post_url %}
+                        <a href="{{ item.post_url }}" target="_blank" class="btn btn-primary" style="padding: 0.3rem 0.6rem; font-size: 0.75rem;">View Post</a>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="4" style="padding: 2rem; text-align: center; color: var(--secondary-text);">The queue is empty.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

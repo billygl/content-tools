@@ -1,0 +1,25 @@
+name: Trigger LinkedIn Queue Worker
+
+on:
+  schedule:
+    # Peak Hours (Adjusted for UTC-5 offset)
+    # Mon-Fri: 7-9am, 12-2pm, 6-9pm Local
+    - cron: '*/15 12-13 * * 1-5' # 7-9am Local
+    - cron: '*/15 17-18 * * 1-5' # 12-2pm Local
+    - cron: '*/15 23 * * 1-5'    # 6-7pm Local
+    - cron: '*/15 0-1 * * 2-6'   # 7-9pm Local (Tue-Sat UTC)
+    
+    # Sat: 2-3pm Local -> 7-8pm UTC
+    - cron: '*/15 19 * * 6'
+    
+    # Sun: 7-9pm Local -> 12-2am UTC (Mon UTC)
+    - cron: '*/15 0-1 * * 1'
+  workflow_dispatch: # Allows manual triggering for testing
+
+jobs:
+  ping-worker:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping PythonAnywhere Worker
+        run: |
+          curl -s "${{ secrets.PA_URL }}/trigger-worker?token=${{ secrets.WORKER_TOKEN }}"
