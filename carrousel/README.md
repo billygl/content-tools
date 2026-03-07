@@ -1,54 +1,69 @@
-# Remotion video
+# 🎡 Automated Carousel Pipeline
 
-<p align="center">
-  <a href="https://github.com/remotion-dev/logo">
-    <picture>
-      <source media="(prefers-color-scheme: dark)" srcset="https://github.com/remotion-dev/logo/raw/main/animated-logo-banner-dark.apng">
-      <img alt="Animated Remotion Logo" src="https://github.com/remotion-dev/logo/raw/main/animated-logo-banner-light.gif">
-    </picture>
-  </a>
-</p>
+High-quality, dynamic social media carousels powered by **Remotion**. Generate stills, LinkedIn PDFs, and TikTok/Reels videos from a single JSON script.
 
-Welcome to your Remotion project!
+---
 
-## Commands
+## 🚀 Quick Start
 
-**Install Dependencies**
-
-```console
-npm i
+### 1. Install Dependencies
+```bash
+npm install
 ```
 
-**Start Preview**
-
-```console
+### 2. Live Preview (Hot Reload)
+See your changes instantly in the browser without rendering:
+```bash
 npm run dev
 ```
 
-**Render video**
-
-```console
-npx remotion render
+### 3. Generate Everything (Standard)
+```bash
+npm run render:all
 ```
+*Outputs: `out/stills/`, `out/carousel.pdf`, `out/video.mp4`*
 
-**Upgrade Remotion**
+---
 
-```console
-npx remotion upgrade
+## 📑 Multi-Post Workflow
+
+To organize different social media posts, keep your scripts in `data/posts/`:
+
+### Create a new post:
+1.  Create folder: `data/posts/my-new-post/`
+2.  Add: `script.json` (use the [LLM Prompt](./LLM_PROMPT.md) to generate it).
+3.  Add: Any images to `public/data/`.
+
+### Render a specific post:
+```bash
+# Render everything for a specific project
+npm run render:post -- --script=data/posts/judit-polgar/script.json
+
+# Render only stills for a specific project
+npm run render:stills -- --script=data/posts/judit-polgar/script.json
 ```
+*Output will be saved in: `out/[project-name-from-json]/`*
 
-## Docs
+---
 
-Get started with Remotion by reading the [fundamentals page](https://www.remotion.dev/docs/the-fundamentals).
+## 🎨 Content Shortcuts
 
-## Help
+You can use these directly in your `script.json` (Title, Subtitle, or Points):
 
-We provide help on our [Discord server](https://discord.gg/6VzzNDwUwV).
+- **`%word`**: Block Highlight (Black text on white background).
+- **`@word`**: Accent Highlight (Uses your theme color).
 
-## Issues
+---
 
-Found an issue with Remotion? [File an issue here](https://github.com/remotion-dev/remotion/issues/new).
+## 🛡️ Social Media Safe Zones
 
-## License
+Set the `safe_zone` in your `script.json` config:
+- `"safe_zone": "tiktok"` (Large bottom margin for captions/buttons)
+- `"safe_zone": "stories"` (Medium bottom margin)
+- `"safe_zone": "none"` (Standard margins)
 
-Note that for some entities a company license is needed. [Read the terms here](https://github.com/remotion-dev/remotion/blob/main/LICENSE.md).
+---
+
+## 🤖 Content Generation
+
+Use the [**LLM_PROMPT.md**](./LLM_PROMPT.md) to turn your raw notes into a perfectly formatted `script.json`.

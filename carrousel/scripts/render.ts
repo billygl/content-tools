@@ -6,16 +6,25 @@ import {jsPDF} from 'jspdf';
 
 const render = async () => {
 	const args = process.argv.slice(2);
-	const runAll = args.length === 0;
+	const scriptArg = args.find(a => a.startsWith('--script='));
+	const scriptFile = scriptArg ? scriptArg.split('=')[1] : 'public/data/script.json';
+	const scriptPath = path.resolve(scriptFile);
+	
+	if (!fs.existsSync(scriptPath)) {
+		console.error(`Script not found: ${scriptPath}`);
+		process.exit(1);
+	}
+
+	const script = JSON.parse(fs.readFileSync(scriptPath, 'utf8'));
+	const projectName = script.project_name?.toLowerCase().replace(/\s+/g, '-') || 'default';
+	
+	const runAll = args.length === 0 || args.every(a => a.startsWith('--script'));
 	const runStills = runAll || args.includes('--stills');
 	const runPdf = runAll || args.includes('--pdf');
 	const runVideo = runAll || args.includes('--video');
 
-	const scriptPath = path.resolve('data/script.json');
-	const script = JSON.parse(fs.readFileSync(scriptPath, 'utf8'));
-	
-	const outDir = path.resolve('out');
-	if (!fs.existsSync(outDir)) fs.mkdirSync(outDir);
+	const outDir = path.resolve('out', projectName);
+	if (!fs.existsSync(outDir)) fs.mkdirSync(outDir, { recursive: true });
 
 	console.log('Bundling project...');
 	const bundleLocation = await bundle({
@@ -35,7 +44,10 @@ const render = async () => {
 			console.log(`Rendering slide ${i + 1}...`);
 			
 			const comps = await getCompositions(bundleLocation, {
-				inputProps: { slide: script.slides[i] }
+				inputProps: { 
+					slide: script.slides[i],
+					config: script.config
+				}
 			});
 			const comp = comps.find((c) => c.id === 'SlideStill')!;
 
@@ -43,7 +55,10 @@ const render = async () => {
 				composition: comp,
 				serveUrl: bundleLocation,
 				output: outputPath,
-				inputProps: { slide: script.slides[i] },
+				inputProps: { 
+					slide: script.slides[i],
+					config: script.config
+				},
 			});
 		}
 	}
@@ -75,16 +90,26 @@ const render = async () => {
 	if (runVideo) {
 		console.log('Rendering video...');
 		const videoPath = path.join(outDir, 'video.mp4');
+		
 		const videoComps = await getCompositions(bundleLocation, {
-			inputProps: { slides: script.slides }
+			inputProps: { 
+				slides: script.slides,
+				config: script.config
+			}
 		});
 		const videoComp = videoComps.find((c) => c.id === 'CarouselVideo')!;
+		
+		// Update duration based on script: 150 frames per slide
+		videoComp.durationInFrames = script.slides.length * 150;
 
 		await renderMedia({
 			composition: videoComp,
 			serveUrl: bundleLocation,
 			outputLocation: videoPath,
-			inputProps: { slides: script.slides },
+			inputProps: { 
+				slides: script.slides,
+				config: script.config
+			},
 			codec: 'h264',
 		});
 		console.log('Video generated at out/video.mp4');

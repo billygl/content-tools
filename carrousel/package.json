@@ -32,6 +32,7 @@
     "render:stills": "npx tsx scripts/render.ts --stills",
     "render:pdf": "npx tsx scripts/render.ts --pdf",
     "render:video": "npx tsx scripts/render.ts --video",
+    "render:post": "npx tsx scripts/render.ts",
     "render:all": "npx tsx scripts/render.ts"
   },
   "sideEffects": [
