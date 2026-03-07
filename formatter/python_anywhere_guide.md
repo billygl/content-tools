@@ -85,7 +85,7 @@ Whenever you push new changes from your computer to GitHub, run these commands i
 
 1. **Pull the latest code**:
    ```bash
-   cd ~/formatter
+   cd ~/tools/formatter
    git pull origin feature/linkedin-batch-scheduler
    ```
 
