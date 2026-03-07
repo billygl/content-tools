@@ -84,10 +84,25 @@ def index():
 @login_required
 def save():
     content = request.form.get("content")
+    step = request.form.get("step", "input") # default to input
+    
+    filename_map = {
+        "input": "data/input.txt",
+        "gemini": "data/gemini_output.txt",
+        "format": "data/final_output.txt"
+    }
+    
+    filename = filename_map.get(step, "data/input.txt")
+    
     os.makedirs("data", exist_ok=True)
-    with open("data/input.txt", "w", encoding="utf-8") as f:
+    with open(filename, "w", encoding="utf-8") as f:
         f.write(content)
-    flash("Input file saved successfully")
+    
+    # Check if AJAX request
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.is_json:
+        return jsonify({"status": "success", "message": f"{step.capitalize()} saved successfully"})
+        
+    flash(f"{step.capitalize()} file saved successfully")
     return redirect(url_for("index"))
 
 def get_queue():
@@ -241,6 +256,40 @@ def upload_images():
             file.save(os.path.join(images_dir, filename))
     
     return jsonify({"status": "success", "message": f"Successfully uploaded and sequenced {count} images."})
+
+@app.route("/upload-single-image", methods=["POST"])
+@login_required
+def upload_single_image():
+    if 'image' not in request.files:
+        return jsonify({"status": "error", "message": "No file uploaded"})
+    
+    file = request.files['image']
+    post_number = request.form.get('post_number')
+    
+    if not post_number or not post_number.isdigit():
+        return jsonify({"status": "error", "message": "Invalid post number"})
+    
+    if not file or file.filename == '':
+        return jsonify({"status": "error", "message": "No file selected"})
+
+    images_dir = "data/images"
+    os.makedirs(images_dir, exist_ok=True)
+
+    allowed_extensions = {'.jpg', '.jpeg', '.png'}
+    ext = os.path.splitext(file.filename)[1].lower()
+    if ext not in allowed_extensions:
+        return jsonify({"status": "error", "message": "File type not supported"})
+
+    # To be safe, remove any existing image with different extensions for this same number
+    for e in allowed_extensions:
+        old_path = os.path.join(images_dir, f"{post_number}{e}")
+        if os.path.exists(old_path):
+            os.remove(old_path)
+            
+    filename = f"{post_number}{ext}"
+    file.save(os.path.join(images_dir, filename))
+    
+    return jsonify({"status": "success", "message": f"Successfully replaced image #{post_number}."})
 
 @app.route("/queue")
 @login_required
