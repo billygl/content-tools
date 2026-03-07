@@ -29,25 +29,26 @@ def highlight(text):
     )
     return response.text
 
-def format_post(text_to_process: str) -> str:
-    """Highlights text intelligently using Gemini and applies bold unicode to asterisks."""
+def gemini_highlight(text_to_process: str) -> str:
+    """Highlights text intelligently using Gemini with asterisks."""
     if not text_to_process.strip():
         return ""
         
     try:
         processed_text = highlight(text_to_process)
-        
-        # Replace *text* with bold version
-        processed_text = re.sub(r'\*([^*]+)\*', lambda m: to_bold(m.group(1)), processed_text)
-        
-        # Trim whitespace for clean output
-        processed_text = processed_text.strip()
-        
-        return processed_text
+        return processed_text.strip()
     except Exception as e:
-        print(f"Error during formatting: {str(e)}")
+        print(f"Error during Gemini generation: {str(e)}")
         # If API fails, return the original text as a fallback
         return text_to_process.strip()
+
+def apply_bold(text_to_process: str) -> str:
+    """Applies bold unicode to asterisks."""
+    if not text_to_process.strip():
+        return ""
+    # Replace *text* with bold version
+    processed_text = re.sub(r'\*([^*]+)\*', lambda m: to_bold(m.group(1)), text_to_process)
+    return processed_text.strip()
 
 def process_batch_file(file_path: str) -> list[str]:
     """Reads a file and splits it into individual posts based on the '-----' separator."""
