@@ -1,5 +1,5 @@
 import React from 'react';
-import {AbsoluteFill, interpolate, useCurrentFrame, staticFile, Img} from 'remotion';
+import {AbsoluteFill, interpolate, useCurrentFrame, staticFile, Img, useVideoConfig} from 'remotion';
 import {ArrowRight, Hash} from 'lucide-react';
 
 export interface SlideProps {
@@ -9,6 +9,11 @@ export interface SlideProps {
 	points?: string[];
 	image?: string;
 	image_style?: {
+		zoom?: number;
+		fit?: 'cover' | 'contain' | 'fill' | 'none';
+		position?: string;
+	};
+	image_style_4_5?: {
 		zoom?: number;
 		fit?: 'cover' | 'contain' | 'fill' | 'none';
 		position?: string;
@@ -26,6 +31,8 @@ export interface SlideProps {
 		safe_zone?: 'tiktok' | 'stories' | 'none';
 		font_size_title?: number;
 		font_size_body?: number;
+		font_size_title_4_5?: number;
+		font_size_body_4_5?: number;
 		author?: {
 			name: string;
 			handle: string;
@@ -75,29 +82,43 @@ export const Slide: React.FC<SlideProps> = ({
 	points,
 	image,
 	image_style,
+	image_style_4_5,
 	type = 'content',
 	background,
 	color,
 	config,
 }) => {
 	const frame = useCurrentFrame();
+	const { width, height } = useVideoConfig();
 	const isOutro = type === 'outro';
-	const imageUrl = image && !image.startsWith('http') ? staticFile(`data/${image}`) : image;
 
-	// Layout Centralization - Avoiding excessive ternary operators
+	const aspectRatio = width / height;
+	const isVertical = aspectRatio < 0.7; // ~9:16 is 0.56, 4:5 is 0.8
+
+	const imageUrl = image && !image.startsWith('http') ? staticFile(`data/${image}`) : image;
+	const selectedStyle = (!isVertical && image_style_4_5) ? image_style_4_5 : image_style;
+
+	// Layout Centralization - Dynamic based on height/width
 	const layout = {
-		top: 270,
-		side: 100,
+		top: isVertical ? height * 0.14 : height * 0.1, // Reduced for 4:5
+		side: isVertical ? width * 0.09 : width * 0.06, // Reduced for 4:5
 		// Outro slides bypass safe zones for impact, content slides respect them (TikTok/Stories)
 		bottom: isOutro 
-			? 100 
-			: config.safe_zone === 'tiktok' ? 670 : (config.safe_zone === 'stories' ? 380 : 150),
-		// Dynamic Font Sizes
-		titleSize: config.font_size_title || (isOutro ? 130 : (imageUrl ? 80 : 110)),
-		bodySize: config.font_size_body || (isOutro ? 80 : (imageUrl ? 60 : 80)),
+			? height * 0.05 
+			: isVertical 
+				? (config.safe_zone === 'tiktok' ? 670 : (config.safe_zone === 'stories' ? 380 : 150))
+				: 80, // Even tighter bottom for 4:5 to maximize space
+		// Dynamic Font Sizes (Scale with width)
+		titleSize: (!isVertical && config.font_size_title_4_5) 
+			? config.font_size_title_4_5 
+			: config.font_size_title || (isOutro ? width * 0.12 : (imageUrl ? width * (isVertical ? 0.075 : 0.07) : width * 0.1)),
+		bodySize: (!isVertical && config.font_size_body_4_5)
+			? config.font_size_body_4_5
+			: config.font_size_body || (isOutro ? width * 0.075 : (imageUrl ? width * (isVertical ? 0.055 : 0.05) : width * 0.075)),
 		// Spacing adjustments
-		contentPaddingTop: isOutro ? 200 : 0,
+		contentPaddingTop: isOutro ? height * 0.1 : 0,
 		headerJustify: (!imageUrl || isOutro) ? 'justify-center' : 'justify-start',
+		headerMarginBottom: isVertical ? 40 : 16, // Reduced for 4:5
 	};
 
 	const accentColor = color || config.accent_color || '#00ff88';
@@ -132,7 +153,10 @@ export const Slide: React.FC<SlideProps> = ({
 			>
 				{/* Header (Always visible) */}
 				{config.show_hashtag !== false && (
-					<div className={`flex items-center gap-4 mb-10 ${layout.headerJustify}`}>
+					<div 
+						className={`flex items-center gap-4 ${layout.headerJustify}`}
+						style={{ marginBottom: layout.headerMarginBottom }}
+					>
 						<Hash size={50} color={accentColor} />
 						<span className="text-5xl font-bold tracking-tight opacity-70">
 							{config.hashtag || 'carousel'}
@@ -202,9 +226,9 @@ export const Slide: React.FC<SlideProps> = ({
 								alt="Slide Content"
 								className="w-full h-full"
 								style={{
-									objectFit: image_style?.fit || 'cover',
-									objectPosition: image_style?.position || 'center',
-									transform: `scale(${image_style?.zoom || 1})`,
+									objectFit: selectedStyle?.fit || 'cover',
+									objectPosition: selectedStyle?.position || 'center',
+									transform: `scale(${selectedStyle?.zoom || 1})`,
 								}}
 							/>
 						</div>
