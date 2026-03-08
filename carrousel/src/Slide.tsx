@@ -8,6 +8,11 @@ export interface SlideProps {
 	sub?: string;
 	points?: string[];
 	image?: string;
+	image_style?: {
+		zoom?: number;
+		fit?: 'cover' | 'contain' | 'fill' | 'none';
+		position?: string;
+	};
 	background?: string;
 	color?: string; // Individual slide theme color
 	config: {
@@ -65,6 +70,7 @@ export const Slide: React.FC<SlideProps> = ({
 	background,
 	color,
 	config,
+	image_style,
 }) => {
 	const frame = useCurrentFrame();
 
@@ -181,7 +187,12 @@ export const Slide: React.FC<SlideProps> = ({
 							<img
 								src={imageUrl}
 								alt="Slide Content"
-								className="w-full h-full object-cover"
+								className="w-full h-full"
+								style={{
+									objectFit: image_style?.fit || 'cover',
+									objectPosition: image_style?.position || 'center',
+									transform: `scale(${image_style?.zoom || 1})`,
+								}}
 							/>
 						</div>
 					)}
