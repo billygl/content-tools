@@ -33,9 +33,12 @@ Copy and paste this prompt into any LLM (ChatGPT, Claude, Gemini) to generate hi
 3. **Slide Fields:**
    - `title`: Main hook (Short and punchy).
    - `sub`: (Optional) Subtitle or supporting text.
+   - `body`: (Optional) Detailed body text (alternative to sub).
    - `points`: (Optional) Array of strings for bullet points.
-   - `image`: (Optional) Filename in `data/images/`. If omitted, the text will be **centered** on screen.
-   - `color`: (Optional) Override accent color for this specific slide.
+   - `image`: (Optional) Filename in `data/images/`.
+   - `image_style`: (Optional) `{ zoom, fit, position }` object.
+   - `type`: (Optional) set to `"outro"` for branding slides.
+   - `color`: (Optional) override accent color.
    - `background`: (Optional) Override background for this specific slide.
 
 ---
