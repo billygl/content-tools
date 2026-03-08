@@ -18,7 +18,8 @@ def _get_headers():
     return {
         "Authorization": f"Bearer {ACCESS_TOKEN}",
         "Content-Type": "application/json",
-        "X-Restli-Protocol-Version": "2.0.0"
+        "X-Restli-Protocol-Version": "2.0.0",
+        "Linkedin-Version": "202602"
     }
 
 def get_my_profile():
@@ -80,96 +81,86 @@ def upload_local_document(doc_path: str, title: str = "Document") -> str:
     return asset_urn
 
 def initialize_media_upload(recipe_urn: str):
-    """Generic media registration (image or document)."""
+    """
+    Generic media registration (image or document) using versioned API.
+    """
     author_urn = _get_author_urn()
-    url = "https://api.linkedin.com/v2/assets?action=registerUpload"
+    
+    if "image" in recipe_urn:
+        url = "https://api.linkedin.com/rest/images?action=initializeUpload"
+    else:
+        url = "https://api.linkedin.com/rest/documents?action=initializeUpload"
+        
     payload = {
-        "registerUploadRequest": {
-            "recipes": [recipe_urn],
-            "owner": author_urn,
-            "serviceRelationships": [
-                {
-                    "relationshipType": "OWNER",
-                    "identifier": "urn:li:userGeneratedContent"
-                }
-            ]
+        "initializeUploadRequest": {
+            "owner": author_urn
         }
     }
     
     response = requests.post(url, headers=_get_headers(), json=payload)
-    response.raise_for_status()
+    if response.status_code != 200:
+        print(f"Failed to initialize upload. Status: {response.status_code}")
+        print(response.json())
+        response.raise_for_status()
+        
     data = response.json()
     
-    upload_mechanism = data["value"]["uploadMechanism"]["com.linkedin.digitalmedia.uploading.MediaUploadHttpRequest"]
-    upload_url = upload_mechanism["uploadUrl"]
-    asset_urn = data["value"]["asset"]
+    upload_url = data["value"]["uploadUrl"]
+    asset_urn = data["value"]["image"] if "image" in recipe_urn else data["value"]["document"]
     
     return upload_url, asset_urn
 
 def schedule_post(text: str, image_urn: str = None, document_urn: str = None, scheduled_time_ms: int = None):
     """
-    Schedules or posts to LinkedIn.
-    Supports Image or Document (PDF).
+    Schedules or posts to LinkedIn using the modern /rest/posts API.
     """
     author_urn = _get_author_urn()
-    url = "https://api.linkedin.com/v2/ugcPosts"
+    url = "https://api.linkedin.com/rest/posts"
     
-    media_content = []
-    share_media_category = "NONE"
-    
-    if document_urn:
-        share_media_category = "DOCUMENT"
-        media_content.append({
-            "media": document_urn,
-            "status": "READY"
-        })
-    elif image_urn:
-        share_media_category = "IMAGE"
-        media_content.append({
-            "media": image_urn,
-            "status": "READY"
-        })
-    
-    share_content = {
-        "shareCommentary": {
-            "text": text
-        },
-        "shareMediaCategory": share_media_category
-    }
-    if media_content:
-        share_content["media"] = media_content
-        
     payload = {
         "author": author_urn,
-        "lifecycleState": "PUBLISHED",
-        "specificContent": {
-            "com.linkedin.ugc.ShareContent": share_content
+        "commentary": text,
+        "visibility": "PUBLIC",
+        "distribution": {
+            "feedDistribution": "MAIN_FEED",
+            "targetEntities": [],
+            "thirdPartyDistributionChannels": []
         },
-        "visibility": {
-            "com.linkedin.ugc.MemberNetworkVisibility": "PUBLIC"
-        }
+        "lifecycleState": "PUBLISHED"
     }
     
+    if document_urn:
+        payload["content"] = {
+            "media": {
+                "id": document_urn,
+                "title": "Document"
+            }
+        }
+    elif image_urn:
+        payload["content"] = {
+            "media": {
+                "id": image_urn,
+                "title": "Image"
+            }
+        }
+        
     if scheduled_time_ms:
-        print("Warning: Native LinkedIn API scheduling (scheduledTime) is restricted to approved Marketing Developer Partners.")
-        print("We are sending the post immediately instead. Local sleep handles the schedule.")
+        print("Warning: Native LinkedIn API scheduling is restricted to approved partners.")
+        print("Sending immediately. Local sleep handles the schedule.")
     
-    # Ensure header has Linkedin-Version for Posts API
-    headers = _get_headers()
-    headers["Linkedin-Version"] = "202304" # Use an appropriate dated version for Posts API
-    
-    print(f"Publishing/Scheduling post to LinkedIn...")
-    response = requests.post(url, headers=headers, json=payload)
+    print(f"Publishing post to LinkedIn via /rest/posts...")
+    response = requests.post(url, headers=_get_headers(), json=payload)
     
     if response.status_code not in (201, 200, 202):
         print(f"Failed to create post. Status: {response.status_code}")
-        print(response.json())
+        try:
+            print(response.json())
+        except:
+            print(response.text)
         response.raise_for_status()
         
     post_urn = response.headers.get("x-restli-id")
     if post_urn:
-        # e.g., urn:li:share:123456789
-        post_id = post_urn.split(":")[-1]
         post_url = f"https://www.linkedin.com/feed/update/{post_urn}"
         return post_url
     

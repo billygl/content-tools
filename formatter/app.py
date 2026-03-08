@@ -6,7 +6,11 @@ from flask_login import LoginManager, UserMixin, login_user, login_required, log
 import json
 from datetime import datetime, timedelta
 from dotenv import load_dotenv, set_key
-from formatter import gemini_highlight, apply_bold, process_batch_file, save_formatted_posts
+from formatter import (
+    gemini_highlight, apply_bold, process_batch_file, save_formatted_posts, 
+    get_post_media, process_and_save_batch,
+    UPLOADS_DIR, INPUT_FILE, GEMINI_OUTPUT_FILE, FINAL_OUTPUT_FILE, QUEUE_DIR, QUEUE_MEDIA_DIR
+)
 from linkedin_api import upload_local_image, upload_local_document, schedule_post
 
 load_dotenv()
@@ -61,7 +65,7 @@ def logout():
 @app.route("/")
 @login_required
 def index():
-    input_file = "data/input.txt"
+    input_file = INPUT_FILE
     content = ""
     if os.path.exists(input_file):
         with open(input_file, "r", encoding="utf-8") as f:
@@ -69,13 +73,13 @@ def index():
     
     # Check for output files to show preview
     gemini_output = ""
-    if os.path.exists("data/gemini_output.txt"):
-        with open("data/gemini_output.txt", "r", encoding="utf-8") as f:
+    if os.path.exists(GEMINI_OUTPUT_FILE):
+        with open(GEMINI_OUTPUT_FILE, "r", encoding="utf-8") as f:
             gemini_output = f.read()
             
     final_output = ""
-    if os.path.exists("data/final_output.txt"):
-        with open("data/final_output.txt", "r", encoding="utf-8") as f:
+    if os.path.exists(FINAL_OUTPUT_FILE):
+        with open(FINAL_OUTPUT_FILE, "r", encoding="utf-8") as f:
             final_output = f.read()
 
     return render_template("index.html", content=content, gemini_output=gemini_output, final_output=final_output)
@@ -87,12 +91,12 @@ def save():
     step = request.form.get("step", "input") # default to input
     
     filename_map = {
-        "input": "data/input.txt",
-        "gemini": "data/gemini_output.txt",
-        "format": "data/final_output.txt"
+        "input": INPUT_FILE,
+        "gemini": GEMINI_OUTPUT_FILE,
+        "format": FINAL_OUTPUT_FILE
     }
     
-    filename = filename_map.get(step, "data/input.txt")
+    filename = filename_map.get(step, INPUT_FILE)
     
     os.makedirs("data", exist_ok=True)
     with open(filename, "w", encoding="utf-8") as f:
@@ -106,7 +110,7 @@ def save():
     return redirect(url_for("index"))
 
 def get_queue():
-    queue_file = "data/queue.json"
+    queue_file = QUEUE_DIR
     if not os.path.exists(queue_file):
         return []
     try:
@@ -116,8 +120,8 @@ def get_queue():
         return []
 
 def save_queue(queue):
-    os.makedirs("data", exist_ok=True)
-    with open("data/queue.json", "w", encoding="utf-8") as f:
+    os.makedirs(os.path.dirname(QUEUE_DIR), exist_ok=True)
+    with open(QUEUE_DIR, "w", encoding="utf-8") as f:
         json.dump(queue, f, indent=4)
 
 @app.route("/run-step", methods=["POST"])
@@ -128,15 +132,11 @@ def run_step():
     
     try:
         if step == "gemini":
-            posts = process_batch_file("data/input.txt")
-            results = [gemini_highlight(p) for p in posts]
-            save_formatted_posts(results, "data/gemini_output.txt")
+            process_and_save_batch(INPUT_FILE, GEMINI_OUTPUT_FILE, "gemini")
             return jsonify({"status": "success", "message": "Gemini highlights generated!"})
         
         elif step == "format":
-            posts = process_batch_file("data/gemini_output.txt")
-            results = [apply_bold(p) for p in posts]
-            save_formatted_posts(results, "data/final_output.txt")
+            process_and_save_batch(GEMINI_OUTPUT_FILE, FINAL_OUTPUT_FILE, "format")
             return jsonify({"status": "success", "message": "Unicode bold applied!"})
             
         elif step == "post":
@@ -147,22 +147,7 @@ def run_step():
                 # We need to know which file matches which post
                 for i, text in enumerate(posts):
                     post_number = i + 1
-                    media_path = None
-                    media_type = None
-                    
-                    # 1. Check for PDF first (Precedence)
-                    pdf_path = os.path.join("data/uploads", f"{post_number}.pdf")
-                    if os.path.exists(pdf_path):
-                        media_path = pdf_path
-                        media_type = "document"
-                    else:
-                        # 2. Check for Images
-                        for ext in ['.jpg', '.jpeg', '.png']:
-                            path = os.path.join("data/uploads", f"{post_number}{ext}")
-                            if os.path.exists(path):
-                                media_path = path
-                                media_type = "image"
-                                break
+                    media_path, media_type = get_post_media(UPLOADS_DIR, post_number)
                     
                     item_id = secrets.token_hex(4)
                     queue_media_path = None
@@ -189,34 +174,24 @@ def run_step():
 
             # Immediate post
             posts = process_batch_file("data/final_output.txt")
-            uploads_dir = "data/uploads"
+            uploads_dir = UPLOADS_DIR
             logs = []
             for i, text in enumerate(posts):
                 post_number = i + 1
-                media_path = None
-                media_type = None
-                
-                # Check PDF
-                pdf_path = os.path.join(uploads_dir, f"{post_number}.pdf")
-                if os.path.exists(pdf_path):
-                    media_path = pdf_path
-                    media_type = "document"
-                else:
-                    # Check Images
-                    for ext in ['.jpg', '.jpeg', '.png']:
-                        path = os.path.join(uploads_dir, f"{post_number}{ext}")
-                        if os.path.exists(path):
-                            media_path = path
-                            media_type = "image"
-                            break
+                media_path, media_type = get_post_media(uploads_dir, post_number)
                 
                 image_urn = None
                 doc_urn = None
                 if media_path:
-                    if media_type == "document":
-                        doc_urn = upload_local_document(media_path)
-                    else:
-                        image_urn = upload_local_image(media_path)
+                    try:
+                        if media_type == "document":
+                            doc_urn = upload_local_document(media_path)
+                        else:
+                            image_urn = upload_local_image(media_path)
+                    except Exception as e:
+                        print(f"CRITICAL: Failed to upload media for post {post_number}: {e}")
+                        logs.append(f"Post {post_number}: FAILED (Media upload failed)")
+                        continue
                 
                 post_url = schedule_post(text, image_urn=image_urn, document_urn=doc_urn)
                 logs.append(f"Post {post_number}: {post_url}")
@@ -251,10 +226,17 @@ def trigger_worker():
                     media_type = item.get("media_type") or "image"
                     
                     if media_path and os.path.exists(media_path):
-                        if media_type == "document" or (media_path.lower().endswith(".pdf")):
-                            doc_urn = upload_local_document(media_path)
-                        else:
-                            image_urn = upload_local_image(media_path)
+                        try:
+                            if media_type == "document" or (media_path.lower().endswith(".pdf")):
+                                doc_urn = upload_local_document(media_path)
+                            else:
+                                image_urn = upload_local_image(media_path)
+                        except Exception as e:
+                            print(f"CRITICAL: Worker failed to upload media for item {item['id']}: {e}")
+                            item["status"] = "failed"
+                            item["error"] = str(e)
+                            logs.append(f"Failed item {item['id']}: Media upload failed")
+                            continue
                     
                     post_url = schedule_post(item["text"], image_urn=image_urn, document_urn=doc_urn)
                     item["status"] = "published"
@@ -314,7 +296,7 @@ def upload_single_image():
     if not file or file.filename == '':
         return jsonify({"status": "error", "message": "No file selected"})
 
-    uploads_dir = "data/uploads"
+    uploads_dir = UPLOADS_DIR
     os.makedirs(uploads_dir, exist_ok=True)
 
     allowed_extensions = {'.jpg', '.jpeg', '.png', '.pdf'}
@@ -343,7 +325,7 @@ def view_queue():
 @app.route("/queue-media/<path:filename>")
 @login_required
 def serve_queue_media(filename):
-    directory = os.path.join(app.root_path, "data/queue_media")
+    directory = os.path.join(app.root_path, QUEUE_MEDIA_DIR)
     # For safety, ensure the path is correct
     if filename.lower().endswith('.pdf'):
         return send_from_directory(directory, filename, mimetype='application/pdf')

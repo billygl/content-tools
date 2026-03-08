@@ -5,6 +5,15 @@ from google import genai
 
 load_dotenv()
 
+# Shared Paths
+DATA_DIR = "data"
+UPLOADS_DIR = os.path.join(DATA_DIR, "uploads")
+QUEUE_DIR = os.path.join(DATA_DIR, "queue.json")
+QUEUE_MEDIA_DIR = os.path.join(DATA_DIR, "queue_media")
+INPUT_FILE = os.path.join(DATA_DIR, "input.txt")
+GEMINI_OUTPUT_FILE = os.path.join(DATA_DIR, "gemini_output.txt")
+FINAL_OUTPUT_FILE = os.path.join(DATA_DIR, "final_output.txt")
+
 system_prompt = "Highlight keywords. Highlight the most important words by making them enclosed in asterisks (*). Choose only 4 or 5 most relevant words to highlight but highlight all their ocurrences. At then end, add 3 o 4 relevant hashtags related to the text. Use spanish. Add some emojis to decorate some ideas."
 
 def to_bold(text):
@@ -75,3 +84,46 @@ def save_formatted_posts(posts: list[str], output_file: str):
     with open(output_file, 'w', encoding='utf-8') as f:
         f.write(result)
     print(f"Formatted outputs saved to {output_file}")
+
+def get_post_media(directory: str, post_number: int) -> tuple[str | None, str | None]:
+    """
+    Looks for media (PDF or Image) for a specific post number.
+    Prioritizes PDF over images.
+    Returns (media_path, media_type)
+    """
+    if not directory or not os.path.exists(directory):
+        return None, None
+        
+    # 1. Check for PDF first (Precedence)
+    pdf_path = os.path.join(directory, f"{post_number}.pdf")
+    if os.path.exists(pdf_path):
+        return pdf_path, "document"
+        
+    # 2. Check for Images
+    for ext in ['.jpg', '.jpeg', '.png']:
+        path = os.path.join(directory, f"{post_number}{ext}")
+        if os.path.exists(path):
+            return path, "image"
+            
+    return None, None
+
+def process_and_save_batch(input_file: str, output_file: str, action: str) -> list[str]:
+    """
+    Processes a batch file with either 'gemini' or 'format' action and saves result.
+    Returns the list of processed posts.
+    """
+    posts = process_batch_file(input_file)
+    if not posts:
+        return []
+        
+    results = []
+    for p in posts:
+        if action == "gemini":
+            results.append(gemini_highlight(p))
+        elif action == "format":
+            results.append(apply_bold(p))
+        else:
+            results.append(p)
+            
+    save_formatted_posts(results, output_file)
+    return results
