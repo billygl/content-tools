@@ -1,4 +1,4 @@
-import {Composition, Series} from 'remotion';
+import {Composition, Series, getInputProps} from 'remotion';
 import {Slide} from './Slide';
 import './index.css';
 import script from '../public/data/script.json';
@@ -10,15 +10,35 @@ export const RemotionRoot: React.FC = () => {
 		return acc + calculateSlideDuration(slide);
 	}, 0);
 
+	// Support dynamic resolution via input props (for --scale)
+	const inputProps = getInputProps() as {width?: number; height?: number};
+	const width = inputProps.width || 1080;
+	const height = inputProps.height;
+
 	return (
 		<>
+			{/* Format 9:16 (Vertical) */}
 			<Composition
-				id="CarouselVideo"
+				id="Carousel-9-16"
 				component={CarouselVideo}
 				durationInFrames={totalDuration}
 				fps={30}
-				width={1080}
-				height={1920}
+				width={width}
+				height={height || 1920}
+				defaultProps={{
+					slides: script.slides,
+					config: script.config,
+				}}
+			/>
+
+			{/* Format 4:5 (Portrait) */}
+			<Composition
+				id="Carousel-4-5"
+				component={CarouselVideo}
+				durationInFrames={totalDuration}
+				fps={30}
+				width={width}
+				height={height || 1350}
 				defaultProps={{
 					slides: script.slides,
 					config: script.config,
@@ -30,8 +50,8 @@ export const RemotionRoot: React.FC = () => {
 				component={SlideStillWrapper}
 				durationInFrames={150}
 				fps={30}
-				width={1080}
-				height={1920}
+				width={width}
+				height={height || 1920}
 				defaultProps={{
 					slide: script.slides[0],
 					config: script.config,
