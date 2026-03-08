@@ -5,10 +5,14 @@ import script from '../public/data/script.json';
 import {calculateSlideDuration} from './utils/duration';
 
 export const RemotionRoot: React.FC = () => {
+	const config = script.config as any;
+	const thumbnailMode = config.thumbnail_mode || 'none';
+	const preRollFrames = thumbnailMode === 'freeze' ? 15 : 0;
+
 	// Calculate dynamic duration by summing all individual slide durations
 	const totalDuration = script.slides.reduce((acc, slide) => {
 		return acc + calculateSlideDuration(slide);
-	}, 0);
+	}, 0) + preRollFrames;
 
 	// Support dynamic resolution via input props (for --scale)
 	const inputProps = getInputProps() as {width?: number; height?: number};
@@ -63,19 +67,37 @@ export const RemotionRoot: React.FC = () => {
 
 const SlideStillWrapper: React.FC<{slide: any; config: any}> = ({slide, config}) => {
 	if (!slide) return null;
-	return <Slide {...slide} config={config} />;
+	return <Slide {...slide} config={config} isStatic />;
 };
 
 const CarouselVideo: React.FC<{slides: any[]; config: any}> = ({slides, config}) => {
 	if (!slides || slides.length === 0) return null;
+	const thumbnailMode = config.thumbnail_mode || 'none';
+	const preRollFrames = thumbnailMode === 'freeze' ? 15 : 0;
+
 	return (
 		<div className="bg-black w-full h-full">
 			<Series>
+				{/* Optional Freeze Frame Pre-roll */}
+				{thumbnailMode === 'freeze' && (
+					<Series.Sequence durationInFrames={preRollFrames}>
+						<Slide {...slides[0]} config={config} isStatic />
+					</Series.Sequence>
+				)}
+
+				{/* Main Content Series */}
 				{slides.map((slide, index) => {
 					const duration = calculateSlideDuration(slide);
+					// If mode is 'static', first slide appears instantly without animation
+					const isFirstSlideStatic = index === 0 && thumbnailMode === 'static';
+					
 					return (
 						<Series.Sequence key={index} durationInFrames={duration}>
-							<Slide {...slide} config={config} />
+							<Slide 
+								{...slide} 
+								config={config} 
+								isStatic={isFirstSlideStatic} 
+							/>
 						</Series.Sequence>
 					);
 				})}

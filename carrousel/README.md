@@ -73,6 +73,20 @@ npm run render:video -- --script=data/posts/judit-polgar/script.json --format=4:
 
 ## 🎨 Advanced Configuration (`script.json`)
 
+### Thumbnail & Social Performance (`thumbnail_mode`)
+To ensure social networks capture a clean title slide as the thumbnail:
+- **`"freeze"` (Best)**: Video starts with Slide 1 already fully visible and static for 15 frames before animating.
+- **`"static"`**: Slide 1 appears instantly without its "fly-in" animation. 
+- **`"none"`**: Standard animated start for all slides.
+
+```json
+{
+  "config": {
+    "thumbnail_mode": "freeze"
+  }
+}
+```
+
 ### Format-Specific Styling
 You can define overrides in the `config` section of your `script.json`:
 - **`font_size_title_4_5`**: Custom title size for 4:5 format.

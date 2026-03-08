@@ -22,6 +22,7 @@ export interface SlideProps {
 	duration?: number;
 	background?: string;
 	color?: string; // Individual slide theme color
+	isStatic?: boolean; // If true, bypass animations
 	config: {
 		background?: string;
 		accent_color?: string;
@@ -29,6 +30,7 @@ export interface SlideProps {
 		hashtag?: string;
 		show_hashtag?: boolean;
 		safe_zone?: 'tiktok' | 'stories' | 'none';
+		thumbnail_mode?: 'none' | 'freeze' | 'static';
 		font_size_title?: number;
 		font_size_body?: number;
 		font_size_title_4_5?: number;
@@ -86,6 +88,7 @@ export const Slide: React.FC<SlideProps> = ({
 	type = 'content',
 	background,
 	color,
+	isStatic = false,
 	config,
 }) => {
 	const frame = useCurrentFrame();
@@ -126,9 +129,10 @@ export const Slide: React.FC<SlideProps> = ({
 	const bg = background || config.background || 'linear-gradient(135deg, #000 0%, #1a1a1a 100%)';
 	const displayBody = body || sub;
 
-	const opacity = interpolate(frame, [0, 15], [0, 1], {extrapolateRight: 'clamp'});
-	const titleY = interpolate(frame, [5, 20], [50, 0], {extrapolateRight: 'clamp'});
-	const listOpacity = interpolate(frame, [20, 35], [0, 1], {extrapolateRight: 'clamp'});
+	// Animations - Bypassed if isStatic is true
+	const opacity = isStatic ? 1 : interpolate(frame, [0, 15], [0, 1], {extrapolateRight: 'clamp'});
+	const titleY = isStatic ? 0 : interpolate(frame, [5, 20], [50, 0], {extrapolateRight: 'clamp'});
+	const listOpacity = isStatic ? 1 : interpolate(frame, [20, 35], [0, 1], {extrapolateRight: 'clamp'});
 
 	return (
 		<AbsoluteFill style={{background: bg, color: primaryColor, fontFamily: 'Inter, sans-serif', overflow: 'hidden'}}>
