@@ -2,16 +2,20 @@ import {Composition, Series} from 'remotion';
 import {Slide} from './Slide';
 import './index.css';
 import script from '../public/data/script.json';
+import {calculateSlideDuration} from './utils/duration';
 
 export const RemotionRoot: React.FC = () => {
-	const duration = script.slides.length * 150;
+	// Calculate dynamic duration by summing all individual slide durations
+	const totalDuration = script.slides.reduce((acc, slide) => {
+		return acc + calculateSlideDuration(slide);
+	}, 0);
 
 	return (
 		<>
 			<Composition
 				id="CarouselVideo"
 				component={CarouselVideo}
-				durationInFrames={duration}
+				durationInFrames={totalDuration}
 				fps={30}
 				width={1080}
 				height={1920}
@@ -47,11 +51,14 @@ const CarouselVideo: React.FC<{slides: any[]; config: any}> = ({slides, config})
 	return (
 		<div className="bg-black w-full h-full">
 			<Series>
-				{slides.map((slide, index) => (
-					<Series.Sequence key={index} durationInFrames={150}>
-						<Slide {...slide} config={config} />
-					</Series.Sequence>
-				))}
+				{slides.map((slide, index) => {
+					const duration = calculateSlideDuration(slide);
+					return (
+						<Series.Sequence key={index} durationInFrames={duration}>
+							<Slide {...slide} config={config} />
+						</Series.Sequence>
+					);
+				})}
 			</Series>
 		</div>
 	);

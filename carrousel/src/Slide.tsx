@@ -14,6 +14,7 @@ export interface SlideProps {
 		position?: string;
 	};
 	type?: 'intro' | 'content' | 'outro';
+	duration?: number;
 	background?: string;
 	color?: string; // Individual slide theme color
 	config: {

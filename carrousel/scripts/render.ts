@@ -4,6 +4,7 @@ import path from 'path';
 import fs from 'fs';
 import {jsPDF} from 'jspdf';
 import {enableTailwind} from '@remotion/tailwind-v4';
+import {calculateSlideDuration} from '../src/utils/duration';
 
 const render = async () => {
 	const args = process.argv.slice(2);
@@ -103,8 +104,8 @@ const render = async () => {
 		});
 		const videoComp = videoComps.find((c) => c.id === 'CarouselVideo')!;
 		
-		// Update duration based on script: 150 frames per slide
-		videoComp.durationInFrames = script.slides.length * 150;
+		// Update duration based on script: sum of individual slide durations
+		videoComp.durationInFrames = script.slides.reduce((acc: number, s: any) => acc + calculateSlideDuration(s), 0);
 
 		await renderMedia({
 			composition: videoComp,
