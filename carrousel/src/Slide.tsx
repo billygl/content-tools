@@ -73,34 +73,40 @@ export const Slide: React.FC<SlideProps> = ({
 	const bg = background || config.background || 'linear-gradient(135deg, #000 0%, #1a1a1a 100%)';
 	const displayBody = body || sub;
 
-	// Handle local image path
 	const imageUrl = image && !image.startsWith('http') ? staticFile(`data/${image}`) : image;
 
-	// Safe Zone Calculations
 	const isTikTok = config.safe_zone === 'tiktok';
 	const isStories = config.safe_zone === 'stories';
 	
-	const topMargin = 270; // ~15%
-	const bottomMargin = isTikTok ? 670 : (isStories ? 380 : 100);
-	const sideMargin = 100; // ~9%
+	const topMargin = 270;
+	// We restore safe zones for the 'Content Container', 
+	// but we'll let the CTA overlay handle the 'floating' look.
+	const bottomMargin = isTikTok ? 670 : (isStories ? 380 : 150);
+	const sideMargin = 100;
 
-	// Dynamic Font Sizes
 	const titleSize = config.font_size_title || (imageUrl ? 80 : 110);
-	const bodySize = config.font_size_body || (imageUrl ? 50 : 65);
+	const bodySize = config.font_size_body || (imageUrl ? 60 : 80);
 
-	// Animations
 	const opacity = interpolate(frame, [0, 15], [0, 1], {extrapolateRight: 'clamp'});
 	const titleY = interpolate(frame, [5, 20], [50, 0], {extrapolateRight: 'clamp'});
 	const listOpacity = interpolate(frame, [20, 35], [0, 1], {extrapolateRight: 'clamp'});
 
 	return (
-		<AbsoluteFill style={{background: bg, color: primaryColor, fontFamily: 'Inter, sans-serif'}}>
-			{/* Content Container (Safe Area) */}
+		<AbsoluteFill style={{background: bg, color: primaryColor, fontFamily: 'Inter, sans-serif', overflow: 'hidden'}}>
+			{/* Big background watermark (Visual Style - Full Bleed) */}
 			<div 
-				className="absolute flex flex-col"
+				className="absolute -bottom-20 -right-20 text-[350px] font-black opacity-10 uppercase tracking-tighter pointer-events-none select-none z-0"
+				style={{ color: accentColor, lineHeight: 0.8 }}
+			>
+				Desliza
+			</div>
+
+			{/* Content Container (Safe for text/critical info) */}
+			<div 
+				className="absolute flex flex-col z-20"
 				style={{
 					top: topMargin,
-					bottom: bottomMargin,
+					bottom: imageUrl ? 150 : bottomMargin,
 					left: sideMargin,
 					right: sideMargin,
 					opacity
@@ -108,9 +114,9 @@ export const Slide: React.FC<SlideProps> = ({
 			>
 				{/* Header */}
 				{config.show_hashtag !== false && (
-					<div className={`flex items-center gap-4 mb-12 ${!imageUrl ? 'justify-center' : ''}`}>
-						<Hash size={40} color={accentColor} />
-						<span className="text-4xl font-bold tracking-tight opacity-70">
+					<div className={`flex items-center gap-4 mb-10 ${!imageUrl ? 'justify-center' : ''}`}>
+						<Hash size={50} color={accentColor} />
+						<span className="text-5xl font-bold tracking-tight opacity-70">
 							{config.hashtag || 'carousel'}
 						</span>
 					</div>
@@ -118,16 +124,16 @@ export const Slide: React.FC<SlideProps> = ({
 
 				{/* Main Content Area */}
 				<div 
-					className={`flex-1 flex flex-col ${!imageUrl ? 'justify-center items-center text-center' : ''}`}
+					className={`flex-1 flex flex-col min-h-0 ${!imageUrl ? 'justify-center items-center text-center' : ''}`}
 				>
 					{/* Title Section */}
 					<div
 						style={{transform: `translateY(${titleY}px)`}}
-						className="space-y-8 w-full"
+						className="w-full mb-8 flex-shrink-0"
 					>
 						<h1 
 							style={{fontSize: titleSize}}
-							className="font-black uppercase tracking-tighter leading-[1.2]"
+							className="font-black uppercase tracking-tighter leading-[1.1] mb-6"
 						>
 							<Highlighter text={title} accentColor={accentColor} isTitle />
 						</h1>
@@ -135,7 +141,7 @@ export const Slide: React.FC<SlideProps> = ({
 						{displayBody && (
 							<p 
 								style={{fontSize: bodySize}}
-								className="font-bold opacity-80 leading-[1.4]"
+								className="font-bold opacity-80 leading-[1.3]"
 							>
 								<Highlighter text={displayBody} accentColor={accentColor} />
 							</p>
@@ -145,14 +151,14 @@ export const Slide: React.FC<SlideProps> = ({
 						{points && (
 							<ul 
 								style={{opacity: listOpacity}}
-								className={`mt-12 space-y-12 list-none ${!imageUrl ? 'text-left inline-block' : ''}`}
+								className={`mt-4 space-y-4 list-none ${!imageUrl ? 'text-left inline-block' : ''}`}
 							>
 								{points.map((point, idx) => (
 									<li key={idx} className="flex items-start gap-6">
-										<div className="w-6 h-6 rounded-full mt-4 flex-shrink-0" style={{backgroundColor: accentColor}} />
+										<div className="w-6 h-6 rounded-full mt-3 flex-shrink-0" style={{backgroundColor: accentColor}} />
 										<span 
 											style={{fontSize: bodySize}}
-											className="font-semibold opacity-90"
+											className="font-semibold opacity-90 leading-[1.2]"
 										>
 											<Highlighter text={point} accentColor={accentColor} />
 										</span>
@@ -162,10 +168,15 @@ export const Slide: React.FC<SlideProps> = ({
 						)}
 					</div>
 
-					{/* Image Container */}
+					{/* Image Area - Re-integrated into flow but with side bleed */}
 					{imageUrl && (
 						<div
-							className="mt-auto mb-12 w-full flex-1 max-h-[700px] min-h-[400px] rounded-[60px] overflow-hidden shadow-[0_60px_120px_rgba(0,0,0,0.7)] border border-white/10"
+							className="relative w-screen flex-1 min-h-0 rounded-[60px] overflow-hidden shadow-[0_60px_120px_rgba(0,0,0,0.7)] border border-white/10"
+							style={{
+								marginLeft: -sideMargin,
+								marginRight: -sideMargin,
+								width: `calc(100% + ${sideMargin * 2}px)`
+							}}
 						>
 							<img
 								src={imageUrl}
@@ -176,19 +187,28 @@ export const Slide: React.FC<SlideProps> = ({
 					)}
 				</div>
 
-				{/* Footer - Stays at the bottom of the safe area */}
-				<div className="flex justify-between items-center w-full pt-8 h-32">
+				{/* Progress Bar (Bottom of content) */}
+				<div className="w-full pt-8 flex-shrink-0">
 					<div
-						className="h-2 rounded-full flex-1 mr-12"
+						className="h-2 rounded-full w-full"
 						style={{backgroundColor: accentColor, opacity: 0.3}}
 					/>
-					{!imageUrl && <div className="text-4xl font-black opacity-30 uppercase tracking-[0.2em] mr-12">Desliza</div>}
-					<div
-						className="w-24 h-24 rounded-full flex items-center justify-center border-4 border-white/10 shadow-lg"
-						style={{color: accentColor, backgroundColor: 'rgba(255,255,255,0.05)'}}
-					>
-						<ArrowRight size={56} strokeWidth={3} />
-					</div>
+				</div>
+			</div>
+
+			{/* Floating CTA - Overlaid on everything, fixed position for consistency */}
+			<div 
+				className="absolute bottom-16 right-16 flex items-center gap-6 z-30"
+				style={{opacity}}
+			>
+				<div className="text-4xl font-black opacity-80 uppercase tracking-[0.2em] whitespace-nowrap drop-shadow-[0_4px_12px_rgba(0,0,0,0.8)] px-4 py-2">
+					Desliza
+				</div>
+				<div
+					className="w-24 h-24 rounded-full flex items-center justify-center border-4 border-white/30 shadow-[0_20px_40px_rgba(0,0,0,0.5)] backdrop-blur-2xl"
+					style={{color: accentColor, backgroundColor: 'rgba(255,255,255,0.1)'}}
+				>
+					<ArrowRight size={56} strokeWidth={3} />
 				</div>
 			</div>
 
