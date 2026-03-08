@@ -1,5 +1,5 @@
 import React from 'react';
-import {AbsoluteFill, interpolate, useCurrentFrame, staticFile} from 'remotion';
+import {AbsoluteFill, interpolate, useCurrentFrame, staticFile, Img} from 'remotion';
 import {ArrowRight, Hash} from 'lucide-react';
 
 export interface SlideProps {
@@ -196,7 +196,7 @@ export const Slide: React.FC<SlideProps> = ({
 								width: `calc(100% + ${layout.side * 2}px)`
 							}}
 						>
-							<img
+							<Img
 								src={imageUrl}
 								alt="Slide Content"
 								className="w-full h-full"
@@ -217,7 +217,7 @@ export const Slide: React.FC<SlideProps> = ({
 								<div className="flex items-center gap-8 mb-4">
 									{config.author.avatar && (
 										<div className="w-32 h-32 rounded-full overflow-hidden border-4 border-white/20 shadow-2xl">
-											<img src={staticFile(`data/${config.author.avatar}`)} className="w-full h-full object-cover" alt="avatar" />
+											<Img src={staticFile(`data/${config.author.avatar}`)} className="w-full h-full object-cover" alt="avatar" />
 										</div>
 									)}
 									<div className="flex flex-col text-left">

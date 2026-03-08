@@ -24,7 +24,7 @@ export const RemotionRoot: React.FC = () => {
 			<Composition
 				id="SlideStill"
 				component={SlideStillWrapper}
-				durationInFrames={30}
+				durationInFrames={150}
 				fps={30}
 				width={1080}
 				height={1920}

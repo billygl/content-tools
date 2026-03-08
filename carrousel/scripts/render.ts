@@ -3,6 +3,7 @@ import {renderStill, renderMedia, getCompositions} from '@remotion/renderer';
 import path from 'path';
 import fs from 'fs';
 import {jsPDF} from 'jspdf';
+import {enableTailwind} from '@remotion/tailwind-v4';
 
 const render = async () => {
 	const args = process.argv.slice(2);
@@ -16,7 +17,7 @@ const render = async () => {
 	}
 
 	const script = JSON.parse(fs.readFileSync(scriptPath, 'utf8'));
-	const projectName = script.project_name?.toLowerCase().replace(/\s+/g, '-') || 'default';
+	const projectName = script.project_name?.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-') || 'default';
 	
 	const runAll = args.length === 0 || args.every(a => a.startsWith('--script'));
 	const runStills = runAll || args.includes('--stills');
@@ -29,6 +30,7 @@ const render = async () => {
 	console.log('Bundling project...');
 	const bundleLocation = await bundle({
 		entryPoint: path.resolve('src/index.ts'),
+		webpackOverride: enableTailwind,
 	});
 
 	const stillsDir = path.join(outDir, 'stills');
@@ -55,6 +57,7 @@ const render = async () => {
 				composition: comp,
 				serveUrl: bundleLocation,
 				output: outputPath,
+				frame: 40,
 				inputProps: { 
 					slide: script.slides[i],
 					config: script.config
@@ -82,8 +85,9 @@ const render = async () => {
 			const imgData = fs.readFileSync(imgPath).toString('base64');
 			pdf.addImage(imgData, 'PNG', 0, 0, 1080, 1920);
 		}
-		pdf.save(path.join(outDir, 'carousel.pdf'));
-		console.log('PDF generated at out/carousel.pdf');
+		const pdfPath = path.join(outDir, 'carousel.pdf');
+		pdf.save(pdfPath);
+		console.log(`PDF generated at ${pdfPath}`);
 	}
 
 	// 3. Render Video
@@ -112,7 +116,7 @@ const render = async () => {
 			},
 			codec: 'h264',
 		});
-		console.log('Video generated at out/video.mp4');
+		console.log(`Video generated at ${videoPath}`);
 	}
 
 	console.log('Done!');
