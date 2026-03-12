@@ -66,8 +66,8 @@ def process_batch_file(file_path: str) -> list[str]:
             content = f.read()
             
         SEPARATOR = '-----'
-        # Split by separator
-        parts = content.split(SEPARATOR)
+        # Split by separator exclusively on its own line
+        parts = re.split(rf'(?m)^{SEPARATOR}\s*$', content)
         
         # Clean up and filter empty posts
         posts = [p.strip() for p in parts if p.strip()]
