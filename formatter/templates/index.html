@@ -2,7 +2,36 @@
 
 {% block content %}
 <div class="card">
-    <h2>📸 Batch Media Upload</h2>
+    <h2>1️⃣ Batch Input Editor</h2>
+    <p style="font-size: 0.85rem; color: #8b949e;">Edit your posts here. Separate each post with exactly 5 dashes: <code>-----</code></p>
+    <textarea id="editor_textarea" name="content" rows="15" style="width: 100%;">{{ content }}</textarea>
+    <div style="margin-top: 1rem; display: flex; gap: 0.5rem; flex-wrap: wrap;">
+        <button onclick="runStep('gemini', this)" class="btn btn-primary" style="flex: 1;">✨ 2. Generate Highlights</button>
+    </div>
+</div>
+
+<div class="card">
+    <header style="display: flex; justify-content: space-between; align-items: center;">
+        <h2>2️⃣ Gemini Review & Bold</h2>
+    </header>
+    <p style="font-size: 0.85rem; color: #8b949e; margin-bottom: 0.5rem;">Review Gemini's output. Make manual asterisk edits if needed. Generating will also attempt to auto-apply bold format afterwards.</p>
+    <textarea id="gemini_textarea" class="output-preview" style="width: 100%; height: 300px; margin-top: 0.5rem;">{{ gemini_output if gemini_output else "No output yet." }}</textarea>
+    <div style="margin-top: 1rem; display: flex; gap: 0.5rem; flex-wrap: wrap;">
+        <button onclick="runStep('format', this)" class="btn btn-primary" style="flex: 1;">📝 3. Apply Final Bold</button>
+    </div>
+</div>
+
+<div class="card">
+    <header style="display: flex; justify-content: space-between; align-items: center;">
+        <h2>3️⃣ Final Text Preview</h2>
+    </header>
+    <p style="font-size: 0.85rem; color: #8b949e; margin-bottom: 0.5rem;">This is the final text exactly as it will appear.</p>
+    <textarea id="final_textarea" class="output-preview" style="width: 100%; height: 300px; margin-top: 0.5rem; margin-bottom: 1rem;">{{ final_output if final_output else "No output yet." }}</textarea>
+
+</div>
+
+<div class="card">
+    <h2>4️⃣ Batch Media Upload & Post</h2>
     <p style="font-size: 0.85rem; color: #8b949e;">Select all images or <strong>PDF documents</strong> for your batch. PDFs take priority and are uploaded as LinkedIn Documents (carousels). They will be sequenced 1, 2, 3... based on your selection.</p>
     <div style="display: flex; gap: 0.75rem; align-items: center; margin-top: 1rem; flex-wrap: wrap;">
         <input type="file" id="image_input" multiple accept="image/*,.pdf" class="btn btn-outline" style="flex: 1; min-width: 150px;">
@@ -19,55 +48,32 @@
     </div>
     
     <div id="upload-status" style="margin-top: 0.5rem; font-size: 0.85rem;"></div>
-</div>
 
-<div class="card">
-    <h2>📝 Batch Input Editor</h2>
-    <p style="font-size: 0.85rem; color: #8b949e;">Edit your posts here. Separate each post with exactly 5 dashes: <code>-----</code></p>
-    <form action="{{ url_for('save') }}" method="POST">
-        <textarea id="editor_textarea" name="content" rows="15">{{ content }}</textarea>
-        <div style="margin-top: 1rem;">
-            <button type="submit" class="btn btn-primary">💾 Save Input File</button>
+    {% if preview_media %}
+    <div style="margin-top: 1.5rem; margin-bottom: 1.5rem; border: 1px solid var(--border-color); border-radius: 8px; padding: 1rem; text-align: center; background: #fafafa;">
+        <h4 style="margin-top: 0; color: #555;">📎 Post #1 Media Preview</h4>
+        {% if preview_type == 'document' %}
+        <div style="display: flex; align-items: center; justify-content: center; gap: 0.5rem;">
+            <span style="font-size: 2rem;">📄</span>
+            <a href="{{ preview_media }}" target="_blank" style="text-decoration: none; font-weight: bold; color: var(--primary-color);">View PDF Carousel</a>
         </div>
-    </form>
-</div>
-
-<div class="card">
-    <h2>⚡ Execution Pipeline</h2>
-    <p style="font-size: 0.85rem; color: #8b949e;">Run each step sequentially and review the output below.</p>
-    
-    <div class="step-controls">
-        <button onclick="runStep('gemini', this)" class="btn btn-outline">1. Gemini Highlight</button>
-        <button onclick="runStep('format', this)" class="btn btn-outline">2. Apply Bold</button>
-        <div class="schedule-group" style="display: flex; gap: 0.5rem; align-items: center; border: 1px solid var(--border-color); padding: 0.4rem; border-radius: 8px; background: #f8f9fa; flex-wrap: wrap;">
-            <button onclick="runStep('post', this)" class="btn btn-success" style="font-size: 0.8rem; padding: 0.4rem 0.8rem; flex: 1; min-width: 100px;">🚀 Post Now</button>
-            <span class="desktop-only" style="color: var(--border-color); font-weight: 300;">|</span>
-            <input type="datetime-local" id="schedule_time" style="padding: 0.3rem; border: 1px solid var(--border-color); border-radius: 4px; font-size: 0.75rem; flex: 1; min-width: 150px;">
-            <button onclick="schedulePost(this)" class="btn btn-outline" style="font-size: 0.8rem; padding: 0.4rem 0.8rem; flex: 1; min-width: 100px;">📅 Schedule</button>
-        </div>
-        </div>
+        {% else %}
+        <img src="{{ preview_media }}" alt="Post 1 Preview" style="max-width: 100%; max-height: 250px; object-fit: contain; border-radius: 4px; border: 1px solid #ccc;">
+        {% endif %}
     </div>
-    
-    <div id="status-box" style="margin-top: 1.5rem; display: none;">
+    {% endif %}
+
+    <!-- Unified status output area -->
+    <div id="status-box" style="margin-top: 0.5rem; margin-bottom: 1.5rem; display: none;">
         <div id="status-message" class="flash-message"></div>
         <div id="log-output" class="output-preview" style="margin-top: 1rem; display: none;"></div>
     </div>
-</div>
 
-<div class="preview-grid">
-    <div class="card">
-        <header>
-            <h3>🔍 Step 1 Preview (Gemini)</h3>
-            <button onclick="saveContent('gemini', 'gemini_textarea', this)" class="btn btn-outline" style="font-size: 0.75rem; padding: 0.2rem 0.5rem;">💾 Save Changes</button>
-        </header>
-        <textarea id="gemini_textarea" class="output-preview" style="width: 100%; height: 300px; margin-top: 0.5rem;">{{ gemini_output if gemini_output else "No output yet." }}</textarea>
-    </div>
-    <div class="card">
-        <header>
-            <h3>✅ Step 2 Preview (Final Bold)</h3>
-            <button onclick="saveContent('format', 'final_textarea', this)" class="btn btn-outline" style="font-size: 0.75rem; padding: 0.2rem 0.5rem;">💾 Save Changes</button>
-        </header>
-        <textarea id="final_textarea" class="output-preview" style="width: 100%; height: 300px; margin-top: 0.5rem;">{{ final_output if final_output else "No output yet." }}</textarea>
+    <div class="schedule-group" style="display: flex; gap: 0.5rem; align-items: center; border: 1px solid var(--border-color); padding: 0.4rem; border-radius: 8px; background: #f8f9fa; flex-wrap: wrap;">
+        <button onclick="runStep('post', this)" class="btn btn-success" style="font-size: 0.8rem; padding: 0.6rem 0.8rem; flex: 1; min-width: 100px;">🚀 Post Now</button>
+        <span class="desktop-only" style="color: var(--border-color); font-weight: 300;">|</span>
+        <input type="datetime-local" id="schedule_time" style="padding: 0.5rem; border: 1px solid var(--border-color); border-radius: 4px; font-size: 0.8rem; flex: 1; min-width: 150px;">
+        <button onclick="schedulePost(this)" class="btn btn-outline" style="font-size: 0.8rem; padding: 0.6rem 0.8rem; flex: 1; min-width: 100px;">📅 Schedule</button>
     </div>
 </div>
 
@@ -282,9 +288,24 @@ async function runStep(step, btn) {
                 logOutput.innerText = data.logs.join('\n');
                 logOutput.style.display = 'block';
             }
-            // Reload page after a delay to show new previews
-            if (step !== 'post') {
-                setTimeout(() => window.location.reload(), 1500);
+            
+            // Re-fetch data rather than hard reload to preserve scroll in mobile flow
+            if (step === 'gemini') {
+                // If we ran gemini, automatically trigger format logic on the backend too 
+                // to execute bolding dynamically so user doesn't have to click another button
+                statusMsg.innerText = "Applying bold formatting...";
+                
+                // Let the server do formatting based on gemini's output
+                const formatResponse = await fetch("{{ url_for('run_step') }}", {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+                    body: new URLSearchParams({'step': 'format'})
+                });
+                
+                // Then fetch texts and update areas instead of reloading
+                setTimeout(() => window.location.reload(), 500);
+            } else if (step !== 'post') {
+                setTimeout(() => window.location.reload(), 1000);
             }
         } else {
             statusMsg.innerText = "❌ Error: " + data.message;
@@ -298,5 +319,32 @@ async function runStep(step, btn) {
         btn.disabled = false;
     }
 }
+
+// Auto-save on blur for all textareas
+document.addEventListener('DOMContentLoaded', () => {
+    const textareas = {
+        'editor_textarea': 'input',
+        'gemini_textarea': 'gemini',
+        'final_textarea': 'format'
+    };
+    
+    for (const [id, step] of Object.entries(textareas)) {
+        const el = document.getElementById(id);
+        if (el) {
+            el.addEventListener('blur', async () => {
+                const content = el.value;
+                try {
+                    await fetch("{{ url_for('save') }}", {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+                        body: new URLSearchParams({'content': content, 'step': step})
+                    });
+                } catch (e) {
+                    console.error("Auto-save on blur failed:", e);
+                }
+            });
+        }
+    }
+});
 </script>
 {% endblock %}
