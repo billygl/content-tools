@@ -1,7 +1,7 @@
 import os
 import secrets
 import shutil
-from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, send_from_directory
+from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, send_from_directory, session
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
 import json
 from datetime import datetime, timedelta
@@ -11,12 +11,25 @@ from formatter import (
     get_post_media, process_and_save_batch,
     UPLOADS_DIR, INPUT_FILE, GEMINI_OUTPUT_FILE, FINAL_OUTPUT_FILE, QUEUE_DIR, QUEUE_MEDIA_DIR
 )
+from database import get_queue, add_to_queue, update_queue_item, delete_from_queue, init_db
 from linkedin_api import upload_local_image, upload_local_document, schedule_post
 
 load_dotenv()
 
 app = Flask(__name__)
-app.secret_key = os.getenv("FLASK_SECRET_KEY", secrets.token_hex(16))
+
+# Persistent Secret Key for Sessions
+secret = os.getenv("FLASK_SECRET_KEY")
+if not secret:
+    secret = secrets.token_hex(16)
+    set_key(".env", "FLASK_SECRET_KEY", secret)
+app.secret_key = secret
+
+# Keep session for 30 days
+app.permanent_session_lifetime = timedelta(days=30)
+
+# Initialize database
+init_db(app)
 
 login_manager = LoginManager()
 login_manager.init_app(app)
@@ -51,6 +64,7 @@ def login():
         if check_auth(username, password):
             user = User("admin")
             login_user(user)
+            session.permanent = True
             return redirect(url_for("index"))
         else:
             flash("Invalid credentials")
@@ -81,13 +95,28 @@ def index():
     if os.path.exists(FINAL_OUTPUT_FILE):
         with open(FINAL_OUTPUT_FILE, "r", encoding="utf-8") as f:
             final_output = f.read()
+            
+    # Check for the first post's media to display in the preview
+    preview_media, preview_type = get_post_media(UPLOADS_DIR, 1)
+    if preview_media:
+        # Convert path pointing to data/uploads into a web-accessible static route
+        # Flask is not configured to serve data/ by default, so we'll route it via a new endpoint
+        preview_media = "/preview-media/" + os.path.basename(preview_media)
 
-    return render_template("index.html", content=content, gemini_output=gemini_output, final_output=final_output)
+    return render_template("index.html", content=content, gemini_output=gemini_output, final_output=final_output, preview_media=preview_media, preview_type=preview_type)
+
+@app.route("/preview-media/<path:filename>")
+@login_required
+def serve_preview_media(filename):
+    directory = os.path.join(app.root_path, UPLOADS_DIR)
+    if filename.lower().endswith('.pdf'):
+        return send_from_directory(directory, filename, mimetype='application/pdf')
+    return send_from_directory(directory, filename)
 
 @app.route("/save", methods=["POST"])
 @login_required
 def save():
-    content = request.form.get("content")
+    content = request.form.get("content", "")
     step = request.form.get("step", "input") # default to input
     
     filename_map = {
@@ -98,31 +127,21 @@ def save():
     
     filename = filename_map.get(step, INPUT_FILE)
     
-    os.makedirs("data", exist_ok=True)
-    with open(filename, "w", encoding="utf-8") as f:
-        f.write(content)
-    
-    # Check if AJAX request
-    if request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.is_json:
-        return jsonify({"status": "success", "message": f"{step.capitalize()} saved successfully"})
-        
-    flash(f"{step.capitalize()} file saved successfully")
-    return redirect(url_for("index"))
-
-def get_queue():
-    queue_file = QUEUE_DIR
-    if not os.path.exists(queue_file):
-        return []
     try:
-        with open(queue_file, "r", encoding="utf-8") as f:
-            return json.load(f)
-    except:
-        return []
+        os.makedirs("data", exist_ok=True)
+        with open(filename, "w", encoding="utf-8") as f:
+            f.write(content)
+        
+        # Check if AJAX request
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.is_json or request.form.get("content") is not None:
+            return jsonify({"status": "success", "message": f"{step.capitalize()} saved successfully"})
+            
+        flash(f"{step.capitalize()} file saved successfully")
+        return redirect(url_for("index"))
+    except Exception as e:
+        return jsonify({"status": "error", "message": f"Failed to save: {str(e)}"}), 500
 
-def save_queue(queue):
-    os.makedirs(os.path.dirname(QUEUE_DIR), exist_ok=True)
-    with open(QUEUE_DIR, "w", encoding="utf-8") as f:
-        json.dump(queue, f, indent=4)
+# SQLite queue management is now imported from database.py
 
 @app.route("/run-step", methods=["POST"])
 @login_required
@@ -142,7 +161,6 @@ def run_step():
         elif step == "post":
             # If target_time_str is provided, we queue it instead of posting immediately
             if target_time_str:
-                queue = get_queue()
                 posts = process_batch_file("data/final_output.txt")
                 # We need to know which file matches which post
                 for i, text in enumerate(posts):
@@ -159,7 +177,7 @@ def run_step():
                         queue_media_path = f"data/queue_media/{item_id}{ext}"
                         shutil.copy2(media_path, queue_media_path)
                     
-                    queue.append({
+                    add_to_queue({
                         "id": item_id,
                         "text": text,
                         "media_path": queue_media_path,
@@ -169,7 +187,6 @@ def run_step():
                         "created_at": datetime.now().isoformat()
                     })
                 
-                save_queue(queue)
                 return jsonify({"status": "success", "message": f"Batch scheduled for {target_time_str}!"})
 
             # Immediate post
@@ -233,23 +250,24 @@ def trigger_worker():
                                 image_urn = upload_local_image(media_path)
                         except Exception as e:
                             print(f"CRITICAL: Worker failed to upload media for item {item['id']}: {e}")
-                            item["status"] = "failed"
-                            item["error"] = str(e)
+                            update_queue_item(item['id'], {
+                                "status": "failed",
+                                "error": str(e)
+                            })
                             logs.append(f"Failed item {item['id']}: Media upload failed")
                             continue
                     
                     post_url = schedule_post(item["text"], image_urn=image_urn, document_urn=doc_urn)
-                    item["status"] = "published"
-                    item["published_at"] = now.isoformat()
-                    item["post_url"] = post_url
+                    update_queue_item(item['id'], {
+                        "status": "published",
+                        "published_at": now.isoformat(),
+                        "post_url": post_url
+                    })
                     published_any = True
                     logs.append(f"Published: {post_url}")
             except Exception as e:
                 logs.append(f"Error posting item {item['id']}: {str(e)}")
 
-    if published_any:
-        save_queue(queue)
-        
     return jsonify({"status": "success", "processed": published_any, "logs": logs})
 
 @app.route("/upload-images", methods=["POST"])
@@ -335,7 +353,6 @@ def serve_queue_media(filename):
 @login_required
 def delete_queue_item(item_id):
     queue = get_queue()
-    new_queue = []
     for item in queue:
         if item["id"] == item_id:
             # Delete physical file from queue_media
@@ -345,10 +362,9 @@ def delete_queue_item(item_id):
                     os.remove(media_path)
                 except:
                     pass
-        else:
-            new_queue.append(item)
+            delete_from_queue(item_id)
+            break
             
-    save_queue(new_queue)
     flash("Item removed from queue")
     return redirect(url_for("view_queue"))
 
