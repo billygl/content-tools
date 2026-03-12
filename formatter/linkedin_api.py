@@ -117,9 +117,13 @@ def schedule_post(text: str, image_urn: str = None, document_urn: str = None, sc
     author_urn = _get_author_urn()
     url = "https://api.linkedin.com/rest/posts"
     
+    # LinkedIn sometimes truncates posts if special unicode characters or emojis
+    # are sent improperly. We ensure the text is explicitly a UTF-8 string.
+    safe_text = text.encode("utf-16", "surrogatepass").decode("utf-16")
+    
     payload = {
         "author": author_urn,
-        "commentary": text,
+        "commentary": safe_text,
         "visibility": "PUBLIC",
         "distribution": {
             "feedDistribution": "MAIN_FEED",
@@ -149,7 +153,12 @@ def schedule_post(text: str, image_urn: str = None, document_urn: str = None, sc
         print("Sending immediately. Local sleep handles the schedule.")
     
     print(f"Publishing post to LinkedIn via /rest/posts...")
-    response = requests.post(url, headers=_get_headers(), json=payload)
+    # Using json.dumps explicitly to ensure ensure_ascii=False prevents unicode escaping truncation
+    json_payload = json.dumps(payload, ensure_ascii=False).encode('utf-8')
+    headers = _get_headers()
+    headers["Content-Type"] = "application/json; charset=utf-8"
+    
+    response = requests.post(url, headers=headers, data=json_payload)
     
     if response.status_code not in (201, 200, 202):
         print(f"Failed to create post. Status: {response.status_code}")
