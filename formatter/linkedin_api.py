@@ -117,9 +117,17 @@ def schedule_post(text: str, image_urn: str = None, document_urn: str = None, sc
     author_urn = _get_author_urn()
     url = "https://api.linkedin.com/rest/posts"
     
-    # LinkedIn sometimes truncates posts if special unicode characters or emojis
-    # are sent improperly. We ensure the text is explicitly a UTF-8 string.
-    safe_text = text.encode("utf-16", "surrogatepass").decode("utf-16")
+    import re
+    
+    # Normalize line endings and strip null bytes to prevent LinkedIn backend truncation.
+    # Windows \r\n or unexpected LLM characters often cause the post to be cut off mid-sentence.
+    safe_text = text.replace('\r\n', '\n').replace('\r', '\n').replace('\x00', '')
+    
+    # CRITICAL FIX: LinkedIn's backend parser (which checks for URLs and mentions) 
+    # crashes if a parenthesis or bracket immediately precedes or encloses astral/4-byte 
+    # Unicode characters (like Mathematical Bold). We escape them with backslashes so the 
+    # API treats them as raw text rather than a malformed markdown/mention node.
+    safe_text = re.sub(r'([()\[\]{}<>])', r'\\\1', safe_text)
     
     payload = {
         "author": author_urn,
@@ -153,10 +161,12 @@ def schedule_post(text: str, image_urn: str = None, document_urn: str = None, sc
         print("Sending immediately. Local sleep handles the schedule.")
     
     print(f"Publishing post to LinkedIn via /rest/posts...")
-    # Using json.dumps explicitly to ensure ensure_ascii=False prevents unicode escaping truncation
-    json_payload = json.dumps(payload, ensure_ascii=False).encode('utf-8')
+    # To bypass LinkedIn WAF treating mixed 4-byte and 2-byte UTF-8 scripts as corrupted/spam,
+    # we force `json.dumps` to escape all unicode to `\uXXXX` standard ASCII. 
+    # LinkedIn's JSON parser seamlessly decodes these back into your exact accented words and emojis.
+    json_payload = json.dumps(payload, ensure_ascii=True).encode('ascii')
     headers = _get_headers()
-    headers["Content-Type"] = "application/json; charset=utf-8"
+    headers["Content-Type"] = "application/json"
     
     response = requests.post(url, headers=headers, data=json_payload)
     

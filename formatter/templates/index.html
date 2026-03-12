@@ -285,7 +285,12 @@ async function runStep(step, btn) {
         if (data.status === 'success') {
             statusMsg.innerText = "✅ " + data.message;
             if (data.logs) {
-                logOutput.innerText = data.logs.join('\n');
+                // Convert plain text logs to HTML, transforming URLs into clickable links
+                const htmlLogs = data.logs.map(log => {
+                    const urlRegex = /(https?:\/\/[^\s]+)/g;
+                    return log.replace(urlRegex, '<a href="$1" target="_blank" style="color: var(--primary-color); text-decoration: underline;">$1</a>');
+                });
+                logOutput.innerHTML = htmlLogs.join('<br>');
                 logOutput.style.display = 'block';
             }
             
