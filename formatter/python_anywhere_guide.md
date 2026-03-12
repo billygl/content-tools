@@ -23,7 +23,7 @@ If you prefer not to use Git, you can still upload files via the **Files** tab..
 2. Run the following commands:
    ```bash
    mkvirtualenv --python=python3.10 linkedin-env
-   pip install flask flask-login requests python-dotenv google-generativeai
+   pip install flask flask-login requests python-dotenv google-genai flask-sqlalchemy
    ```
 
 ## 3. Create the Web App
