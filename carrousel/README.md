@@ -93,11 +93,16 @@ You can define overrides in the `config` section of your `script.json`:
 - **`font_size_body_4_5`**: Custom body size for 4:5 format.
 
 ### Image Styling (`image_style`)
-Fine-tune how your images are cropped and zoomed. You can even have different styles for 4:5:
+Fine-tune how your images are sized, cropped, and zoomed. You can even have different styles for 4:5:
 ```json
 {
   "image": "my-photo.jpg",
-  "image_style": { "zoom": 1, "position": "center" },
+  "image_style": { 
+    "width": "50%", 
+    "borderRadius": "full", 
+    "zoom": 1, 
+    "position": "center" 
+  },
   "image_style_4_5": { "zoom": 1.5, "position": "top 20%" }
 }
 ```
@@ -105,6 +110,79 @@ Fine-tune how your images are cropped and zoomed. You can even have different st
 ### Content Shortcuts
 - **`%word`**: Block Highlight (Black text on white background).
 - **`@word`**: Accent Highlight (Uses your theme color).
+
+### Themes System (`config.theme`)
+We support pre-defined themes that automatically handle alternating background colors to create visual variety across your carousel.
+
+All global themes are now stored conveniently in **`public/data/themes.json`**.
+You can add your own brand colors directly to that JSON file (e.g. "notebooklm", "whatsapp"). 
+
+```json
+{
+  "config": {
+    "theme": "whatsapp"
+  }
+}
+```
+
+#### Inline Custom Themes (One-offs)
+If you don't want to save a theme to `themes.json`, you can pass an entire theme object directly inside your `script.json` for ultimate personalization!
+
+```json
+{
+  "config": {
+    "theme": {
+      "backgrounds": ["#000000", "#111111"],
+      "primary_color": "#ffffff",
+      "accent_color": "#ff0000",
+      "highlight_bg_color": "#ffff00", 
+      "highlight_text_color": "#000000"
+    }
+  }
+}
+```
+
+### Slide Layouts (`layout`)
+Transform the style of an individual slide by declaring a layout type:
+- **`"standard"`** (Default) (or **`"intro"`**): Split content (Text + Image) or centered text.
+- **`"image_top"`**: Top-heavy flow. Places the image directly between the Title and the Body text, organically sandwiching it.
+- **`"title_only"`**: Forces text perfectly center, ignoring any body/points.
+- **`"blank"`**: Ignores all content, rendering only the blank background wrapper.
+- **`"full_image"`**: Ignores safe margins, stretches the `image` to fill the entire screen, adding a cinematic dark overlay behind your text.
+- **`"outro"`**: Automatically styles the slide as a final Call-to-Action. Displays the "Fin" watermark, author branding, and a "Follow" button.
+- **`"code"`**: Completely bypasses the default slide and allows you to inject entirely custom React `.tsx` components from your `script.json`!
+
+```json
+{
+  "title": "A Cinematic Moment",
+  "image": "my-photo.jpg",
+  "layout": "full_image"
+}
+```
+
+### 🧩 Custom React Slides (`layout: "code"`)
+For massive special occasions (like a huge Black Friday completely 3D animated slide), you can write custom code and inject it *only* for that slide, keeping the rest of the carousel intact.
+
+1. **Create your component:** Put a file in `src/custom/` (We've provided `PromoSlide.tsx` as an example). It will automatically receive all the `config`, `title`, and `background` colors for the current alternating theme.
+2. **Register it:** Export it in `src/custom/index.ts`.
+3. **Trigger it in JSON:** Use `layout: "code"` and tell it the exact name of your component in the `src` string.
+
+```json
+{
+  "title": "50% OFF TODAY",
+  "layout": "code",
+  "src": "PromoSlide"
+}
+```
+
+### Text Micro-Adjustments (Offsets)
+Sometimes Remotion's automated layout needs a *tiny nudge* to look perfect. You can tweak positions instantly without touching the code.
+
+Add these properties to a slide in `script.json` (values in pixels):
+- `"title_offset_x": 0`
+- `"title_offset_y": -40` (pushes title up 40px)
+- `"body_offset_x": 20` (pushes body right 20px)
+- `"body_offset_y": 0`
 
 ---
 

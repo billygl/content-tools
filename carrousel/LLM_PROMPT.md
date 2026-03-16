@@ -24,20 +24,23 @@ Copy and paste this prompt into any LLM (ChatGPT, Claude, Gemini) to generate hi
    - `project_name`: Descriptive name.
    - `slides`: An array of slide objects.
    - `config`: Global styles:
-     - `background`, `primary_color`, `accent_color`
+     - `theme`: (Optional) `"default"`, `"whatsapp"`, `"notebooklm"`, etc (pulls from `themes.json`). OR, you can provide an entire inline theme object for a custom brand: `{"backgrounds": ["#HEX1", "#HEX2"], "primary_color": "#HEX", "accent_color": "#HEX", "highlight_bg_color": "#HEX", "highlight_text_color": "#HEX"}`.
+     - `background`, `primary_color`, `accent_color`: (Optional manual overrides).
      - `hashtag`, `show_hashtag` (boolean)
      - `safe_zone`: Use "tiktok", "stories", or "none".
      - `font_size_title`: (Optional) Custom title size.
      - `font_size_body`: (Optional) Custom body/points size.
 
 3. **Slide Fields:**
+   - `layout`: (Optional) `"standard"` (or `"intro"`), `"title_only"`, `"blank"`, `"full_image"`, `"image_top"`, `"outro"`, or `"code"`.
+   - `src`: (Optional) If `layout: "code"`, the exact name of your custom React component (e.g., `"PromoSlide"`).
    - `title`: Main hook (Short and punchy).
    - `sub`: (Optional) Subtitle or supporting text.
    - `body`: (Optional) Detailed body text (alternative to sub).
    - `points`: (Optional) Array of strings for bullet points.
    - `image`: (Optional) Filename in `data/images/`.
-   - `image_style`: (Optional) `{ zoom, fit, position }` object.
-   - `type`: (Optional) set to `"outro"` for branding slides.
+   - `image_style`: (Optional) `{ zoom, fit, position, width, height, borderRadius }` object. Set `width` to shrink logos and `borderRadius: "full"` for circle avatars.
+   - `title_offset_x`, `title_offset_y`, `body_offset_x`, `body_offset_y`: (Optional) numeric. Micro-spacing tweaks.
    - `color`: (Optional) override accent color.
    - `background`: (Optional) Override background for this specific slide.
 
@@ -50,8 +53,18 @@ Copy and paste this prompt into any LLM (ChatGPT, Claude, Gemini) to generate hi
 
 ---
 
-### 📄 Output Format (JSON ONLY)
-Please provide ONLY the JSON code block, following this exact schema:
+### 🧩 Custom Component Generation (`layout: "code"`)
+If the user requests a **complex visual layout** that cannot be served by the standard templates (e.g., "a custom 3D grid layout" or "a special promo slide with bouncing arrows"), you must:
+1. Set the slide's `layout` to `"code"` and `src` to a new component name.
+2. Provide the JSON as normal.
+3. Then, provide the React code for that new component using `AbsoluteFill` and `SlideProps` from `remotion`, ensuring it applies the current `background` and `accentColor` passed from the Root.
+4. Tell the user to save it in `src/custom/ComponentName.tsx` and register it in `src/custom/index.ts`.
+
+---
+
+### 📄 Output Format
+For standard requests, provide ONLY the JSON code block.
+For complex custom layouts, provide the JSON block AND the React `.tsx` block.
 
 ```json
 {
@@ -61,6 +74,9 @@ Please provide ONLY the JSON code block, following this exact schema:
       "id": 1,
       "title": "The mujer que se @negó a jugar",
       "sub": "Subtitle goes here",
+      "layout": "full_image",
+      "image": "portrait.jpg",
+      "title_offset_y": -40,
       "color": "#6a1b9a"
     },
     {
@@ -70,10 +86,14 @@ Please provide ONLY the JSON code block, following this exact schema:
     }
   ],
   "config": {
+    "theme": {
+      "backgrounds": ["#26b93f", "#ffffff"],
+      "primary_color": "#000000",
+      "accent_color": "#128C7E",
+      "highlight_bg_color": "#000000",
+      "highlight_text_color": "#ffffff"
+    },
     "font_family": "Outfit, sans-serif",
-    "primary_color": "#ffffff",
-    "accent_color": "#00ff88",
-    "background": "linear-gradient(135deg, #000 0%, #1a1a1a 100%)",
     "show_hashtag": false
   }
 }

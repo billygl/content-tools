@@ -3,6 +3,8 @@ import {Slide} from './Slide';
 import './index.css';
 import script from '../public/data/script.json';
 import {calculateSlideDuration} from './utils/duration';
+import THEMES from '../public/data/themes.json';
+import {CustomComponents} from './custom';
 
 export const RemotionRoot: React.FC = () => {
 	const config = script.config as any;
@@ -67,13 +69,37 @@ export const RemotionRoot: React.FC = () => {
 
 const SlideStillWrapper: React.FC<{slide: any; config: any}> = ({slide, config}) => {
 	if (!slide) return null;
-	return <Slide {...slide} config={config} isStatic />;
+	const themeInput = config.theme || 'default';
+	const theme = typeof themeInput === 'string' 
+		? ((THEMES as any)[themeInput] || (THEMES as any)['default']) 
+		: themeInput; // It's an object directly from script.json
+	
+	const slideBackground = slide.background || theme.backgrounds[0];
+	
+	if (slide.layout === 'code' && slide.src && CustomComponents[slide.src]) {
+		const CustomSlide = CustomComponents[slide.src];
+		return <CustomSlide {...slide} config={{...theme, ...config}} background={slideBackground} isStatic />;
+	}
+
+	return (
+		<Slide 
+			{...slide} 
+			config={{...theme, ...config}} 
+			background={slideBackground} 
+			isStatic 
+		/>
+	);
 };
 
 const CarouselVideo: React.FC<{slides: any[]; config: any}> = ({slides, config}) => {
 	if (!slides || slides.length === 0) return null;
 	const thumbnailMode = config.thumbnail_mode || 'none';
 	const preRollFrames = thumbnailMode === 'freeze' ? 15 : 0;
+	
+	const themeInput = config.theme || 'default';
+	const theme = typeof themeInput === 'string' 
+		? ((THEMES as any)[themeInput] || (THEMES as any)['default']) 
+		: themeInput;
 
 	return (
 		<div className="bg-black w-full h-full">
@@ -81,7 +107,12 @@ const CarouselVideo: React.FC<{slides: any[]; config: any}> = ({slides, config})
 				{/* Optional Freeze Frame Pre-roll */}
 				{thumbnailMode === 'freeze' && (
 					<Series.Sequence durationInFrames={preRollFrames}>
-						<Slide {...slides[0]} config={config} isStatic />
+						<Slide 
+							{...slides[0]} 
+							config={{...theme, ...config}} 
+							background={slides[0].background || theme.backgrounds[0]} 
+							isStatic 
+						/>
 					</Series.Sequence>
 				)}
 
@@ -90,12 +121,28 @@ const CarouselVideo: React.FC<{slides: any[]; config: any}> = ({slides, config})
 					const duration = calculateSlideDuration(slide);
 					// If mode is 'static', first slide appears instantly without animation
 					const isFirstSlideStatic = index === 0 && thumbnailMode === 'static';
+					const slideBackground = slide.background || theme.backgrounds[index % theme.backgrounds.length];
+
+					if (slide.layout === 'code' && slide.src && CustomComponents[slide.src]) {
+						const CustomSlide = CustomComponents[slide.src];
+						return (
+							<Series.Sequence key={index} durationInFrames={duration}>
+								<CustomSlide 
+									{...slide} 
+									config={{...theme, ...config}} 
+									background={slideBackground}
+									isStatic={isFirstSlideStatic} 
+								/>
+							</Series.Sequence>
+						);
+					}
 					
 					return (
 						<Series.Sequence key={index} durationInFrames={duration}>
 							<Slide 
 								{...slide} 
-								config={config} 
+								config={{...theme, ...config}} 
+								background={slideBackground}
 								isStatic={isFirstSlideStatic} 
 							/>
 						</Series.Sequence>

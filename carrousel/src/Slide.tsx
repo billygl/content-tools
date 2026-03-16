@@ -10,23 +10,37 @@ export interface SlideProps {
 	image?: string;
 	image_style?: {
 		zoom?: number;
-		fit?: 'cover' | 'contain' | 'fill' | 'none';
+		fit?: 'cover' | 'contain' | 'fill' | 'none' | 'scale-down';
 		position?: string;
+		width?: string;
+		height?: string;
+		borderRadius?: string;
 	};
 	image_style_4_5?: {
 		zoom?: number;
-		fit?: 'cover' | 'contain' | 'fill' | 'none';
+		fit?: 'cover' | 'contain' | 'fill' | 'none' | 'scale-down';
 		position?: string;
+		width?: string;
+		height?: string;
+		borderRadius?: string;
 	};
-	type?: 'intro' | 'content' | 'outro';
 	duration?: number;
 	background?: string;
 	color?: string; // Individual slide theme color
 	isStatic?: boolean; // If true, bypass animations
+	layout?: 'standard' | 'title_only' | 'blank' | 'full_image' | 'code' | 'intro' | 'outro' | 'image_top';
+	src?: string;
+	title_offset_x?: number;
+	title_offset_y?: number;
+	body_offset_x?: number;
+	body_offset_y?: number;
 	config: {
+		theme?: string;
 		background?: string;
 		accent_color?: string;
 		primary_color?: string;
+		highlight_bg_color?: string;
+		highlight_text_color?: string;
 		hashtag?: string;
 		show_hashtag?: boolean;
 		safe_zone?: 'tiktok' | 'stories' | 'none';
@@ -43,7 +57,14 @@ export interface SlideProps {
 	};
 }
 
-const Highlighter: React.FC<{text: string; accentColor: string; isTitle?: boolean}> = ({text, accentColor, isTitle}) => {
+const Highlighter: React.FC<{
+	text: string; 
+	accentColor: string; 
+	primaryColor: string;
+	highlightBgColor?: string;
+	highlightTextColor?: string;
+	isTitle?: boolean;
+}> = ({text, accentColor, primaryColor, highlightBgColor, highlightTextColor, isTitle}) => {
 	return (
 		<>
 			{text.split(' ').map((word, i) => {
@@ -54,7 +75,13 @@ const Highlighter: React.FC<{text: string; accentColor: string; isTitle?: boolea
 				if (isBlockHighlight) {
 					return (
 						<React.Fragment key={i}>
-							<span className={`bg-white text-black ${isTitle ? 'px-6 py-2' : 'px-3 py-1'} inline-block`}>
+							<span 
+								style={{
+									backgroundColor: highlightBgColor || accentColor,
+									color: highlightTextColor || primaryColor
+								}}
+								className={`${isTitle ? 'px-6 py-2' : 'px-3 py-1'} inline-block`}
+							>
 								{cleanWord}
 							</span>{' '}
 						</React.Fragment>
@@ -85,15 +112,19 @@ export const Slide: React.FC<SlideProps> = ({
 	image,
 	image_style,
 	image_style_4_5,
-	type = 'content',
 	background,
 	color,
 	isStatic = false,
+	layout = 'standard',
+	title_offset_x = 0,
+	title_offset_y = 0,
+	body_offset_x = 0,
+	body_offset_y = 0,
 	config,
 }) => {
 	const frame = useCurrentFrame();
 	const { width, height } = useVideoConfig();
-	const isOutro = type === 'outro';
+	const isOutro = layout === 'outro';
 
 	const aspectRatio = width / height;
 	const isVertical = aspectRatio < 0.7; // ~9:16 is 0.56, 4:5 is 0.8
@@ -102,14 +133,14 @@ export const Slide: React.FC<SlideProps> = ({
 	const selectedStyle = (!isVertical && image_style_4_5) ? image_style_4_5 : image_style;
 
 	// Layout Centralization - Dynamic based on height/width
-	const layout = {
+	const layoutConfig = {
 		top: isVertical ? height * 0.14 : height * 0.1, // Reduced for 4:5
 		side: isVertical ? width * 0.09 : width * 0.06, // Reduced for 4:5
 		// Outro slides bypass safe zones for impact, content slides respect them (TikTok/Stories)
 		bottom: isOutro 
 			? height * 0.05 
 			: isVertical 
-				? (config.safe_zone === 'tiktok' ? 670 : (config.safe_zone === 'stories' ? 380 : 150))
+				? (config.safe_zone === 'tiktok' ? 670 : (config.safe_zone === 'stories' ? 380 : (config.safe_zone === 'none' ? 80 : 150)))
 				: 80, // Even tighter bottom for 4:5 to maximize space
 		// Dynamic Font Sizes (Scale with width)
 		titleSize: (!isVertical && config.font_size_title_4_5) 
@@ -134,6 +165,13 @@ export const Slide: React.FC<SlideProps> = ({
 	const titleY = isStatic ? 0 : interpolate(frame, [5, 20], [50, 0], {extrapolateRight: 'clamp'});
 	const listOpacity = isStatic ? 1 : interpolate(frame, [20, 35], [0, 1], {extrapolateRight: 'clamp'});
 
+	if (layout === 'blank') {
+		const bg = background || config.background || 'linear-gradient(135deg, #000 0%, #1a1a1a 100%)';
+		return (
+			<AbsoluteFill style={{background: bg, overflow: 'hidden'}} />
+		);
+	}
+
 	return (
 		<AbsoluteFill style={{background: bg, color: primaryColor, fontFamily: 'Inter, sans-serif', overflow: 'hidden'}}>
 			{/* Big background watermark */}
@@ -144,22 +182,40 @@ export const Slide: React.FC<SlideProps> = ({
 				{isOutro ? 'Fin' : 'Desliza'}
 			</div>
 
+			{/* Full Image Layout Background (ignores safe zones) */}
+			{layout === 'full_image' && imageUrl && (
+				<div className="absolute inset-0 z-0">
+					<Img
+						src={imageUrl}
+						alt="Background Slide Content"
+						className="w-full h-full"
+						style={{
+							objectFit: selectedStyle?.fit || 'cover',
+							objectPosition: selectedStyle?.position || 'center',
+							transform: `scale(${selectedStyle?.zoom || 1})`,
+							opacity: 0.6 // darken slightly for text readability
+						}}
+					/>
+					<div className="absolute inset-0 bg-black/40" /> {/* Overlay */}
+				</div>
+			)}
+
 			{/* Content Container */}
 			<div 
 				className="absolute flex flex-col z-20"
 				style={{
-					top: layout.top,
-					bottom: (imageUrl && !isOutro) ? 150 : layout.bottom,
-					left: layout.side,
-					right: layout.side,
+					top: layoutConfig.top,
+					bottom: (imageUrl && !isOutro) ? 150 : layoutConfig.bottom,
+					left: layoutConfig.side,
+					right: layoutConfig.side,
 					opacity
 				}}
 			>
 				{/* Header (Always visible) */}
 				{config.show_hashtag !== false && (
 					<div 
-						className={`flex items-center gap-4 ${layout.headerJustify}`}
-						style={{ marginBottom: layout.headerMarginBottom }}
+						className={`flex items-center gap-4 ${layoutConfig.headerJustify}`}
+						style={{ marginBottom: layoutConfig.headerMarginBottom }}
 					>
 						<Hash size={50} color={accentColor} />
 						<span className="text-5xl font-bold tracking-tight opacity-70">
@@ -170,27 +226,79 @@ export const Slide: React.FC<SlideProps> = ({
 
 				{/* Main Content Area */}
 				<div 
-					className={`flex-1 flex flex-col min-h-0 ${(!imageUrl || isOutro) ? 'justify-center items-center text-center' : ''}`}
-					style={{ paddingTop: layout.contentPaddingTop }}
+					className={`flex-1 flex flex-col min-h-0 ${(!imageUrl || isOutro || layout === 'title_only' || layout === 'full_image') ? 'justify-center items-center text-center' : ''}`}
+					style={{ paddingTop: layoutConfig.contentPaddingTop }}
 				>
-					{/* Title Section */}
+					{/* Title Section (Title Only) */}
 					<div
-						style={{transform: `translateY(${titleY}px)`}}
+						style={{
+							marginTop: (layout === 'image_top' && imageUrl) ? '40px' : '0px',
+							transform: `translate(${title_offset_x}px, ${titleY + title_offset_y}px)`
+						}}
 						className="w-full mb-8 flex-shrink-0"
 					>
 						<h1 
-							style={{fontSize: layout.titleSize}}
+							style={{fontSize: layoutConfig.titleSize}}
 							className="font-black uppercase tracking-tighter leading-[1.05] mb-8"
 						>
-							<Highlighter text={title} accentColor={accentColor} isTitle />
+							<Highlighter 
+								text={title} 
+								accentColor={accentColor} 
+								primaryColor={primaryColor}
+								highlightBgColor={config.highlight_bg_color}
+								highlightTextColor={config.highlight_text_color}
+								isTitle 
+							/>
 						</h1>
-						
+					</div>
+
+					{/* Image Area for image_top (Between Title and Body) */}
+					{layout === 'image_top' && imageUrl && !isOutro && (
+						<div
+							className="relative flex-1 min-h-0 overflow-hidden shadow-[0_60px_120px_rgba(0,0,0,0.7)] border border-white/10 mb-8"
+							style={{
+								marginLeft: selectedStyle?.width ? 'auto' : -layoutConfig.side,
+								marginRight: selectedStyle?.width ? 'auto' : -layoutConfig.side,
+								width: selectedStyle?.width || `calc(100% + ${layoutConfig.side * 2}px)`,
+								height: selectedStyle?.height || 'auto',
+								borderRadius: selectedStyle?.borderRadius || '60px',
+							}}
+						>
+							<Img
+								src={imageUrl}
+								alt="Slide Content"
+								className="w-full h-full"
+								style={{
+									objectFit: selectedStyle?.fit || 'cover',
+									objectPosition: selectedStyle?.position || 'center',
+									transform: `scale(${selectedStyle?.zoom || 1})`,
+								}}
+							/>
+						</div>
+					)}
+
+					{/* Body & Points Section */}
+					<div
+						style={{
+							transform: `translate(${title_offset_x}px, ${titleY + title_offset_y}px)`
+						}}
+						className="w-full mb-8 flex-shrink-0"
+					>
 						{displayBody && (
 							<p 
-								style={{fontSize: layout.bodySize}}
+								style={{
+									fontSize: layoutConfig.bodySize,
+									transform: `translate(${body_offset_x}px, ${body_offset_y}px)`
+								}}
 								className="font-bold opacity-80 leading-[1.3] max-w-[90%] mx-auto"
 							>
-								<Highlighter text={displayBody} accentColor={accentColor} />
+								<Highlighter 
+									text={displayBody} 
+									accentColor={accentColor} 
+									primaryColor={primaryColor}
+									highlightBgColor={config.highlight_bg_color}
+									highlightTextColor={config.highlight_text_color}
+								/>
 							</p>
 						)}
 
@@ -204,10 +312,16 @@ export const Slide: React.FC<SlideProps> = ({
 									<li key={idx} className="flex items-start gap-6">
 										<div className="w-6 h-6 rounded-full mt-3 flex-shrink-0" style={{backgroundColor: accentColor}} />
 										<span 
-											style={{fontSize: layout.bodySize}}
+											style={{fontSize: layoutConfig.bodySize}}
 											className="font-semibold opacity-90 leading-[1.2]"
 										>
-											<Highlighter text={point} accentColor={accentColor} />
+											<Highlighter 
+												text={point} 
+												accentColor={accentColor} 
+												primaryColor={primaryColor}
+												highlightBgColor={config.highlight_bg_color}
+												highlightTextColor={config.highlight_text_color}
+											/>
 										</span>
 									</li>
 								))}
@@ -215,14 +329,16 @@ export const Slide: React.FC<SlideProps> = ({
 						)}
 					</div>
 
-					{/* Image Area (Hidden on Outro to focus on CTA) */}
-					{imageUrl && !isOutro && (
+					{/* Image Area for standard layouts (Hidden on image_top, Outro, title_only, full_image) */}
+					{layout !== 'image_top' && imageUrl && !isOutro && layout !== 'title_only' && layout !== 'full_image' && (
 						<div
-							className="relative w-screen flex-1 min-h-0 rounded-[60px] overflow-hidden shadow-[0_60px_120px_rgba(0,0,0,0.7)] border border-white/10"
+							className="relative flex-1 min-h-0 overflow-hidden shadow-[0_60px_120px_rgba(0,0,0,0.7)] border border-white/10"
 							style={{
-								marginLeft: -layout.side,
-								marginRight: -layout.side,
-								width: `calc(100% + ${layout.side * 2}px)`
+								marginLeft: selectedStyle?.width ? 'auto' : -layoutConfig.side,
+								marginRight: selectedStyle?.width ? 'auto' : -layoutConfig.side,
+								width: selectedStyle?.width || `calc(100% + ${layoutConfig.side * 2}px)`,
+								height: selectedStyle?.height || 'auto',
+								borderRadius: selectedStyle?.borderRadius || '60px',
 							}}
 						>
 							<Img
@@ -299,12 +415,12 @@ export const Slide: React.FC<SlideProps> = ({
 			)}
 
 			{/* Debug Safe Zones (Development Only) */}
-			{process.env.NODE_ENV === 'development' && config.safe_zone && (
+			{process.env.NODE_ENV === 'development' && config.safe_zone && config.safe_zone !== 'none' && (
 				<div className="absolute inset-0 pointer-events-none" style={{zIndex: 100}}>
-					<div className="absolute top-0 left-0 right-0 bg-red-500/10 border-b border-red-500/30" style={{height: layout.top}} />
-					<div className="absolute bottom-0 left-0 right-0 bg-red-500/10 border-t border-red-500/30" style={{height: layout.bottom}} />
-					<div className="absolute inset-y-0 left-0 bg-red-500/10 border-r border-red-500/30" style={{width: layout.side}} />
-					<div className="absolute inset-y-0 right-0 bg-red-500/10 border-l border-red-500/30" style={{width: layout.side}} />
+					<div className="absolute top-0 left-0 right-0 bg-red-500/10 border-b border-red-500/30" style={{height: layoutConfig.top}} />
+					<div className="absolute bottom-0 left-0 right-0 bg-red-500/10 border-t border-red-500/30" style={{height: layoutConfig.bottom}} />
+					<div className="absolute inset-y-0 left-0 bg-red-500/10 border-r border-red-500/30" style={{width: layoutConfig.side}} />
+					<div className="absolute inset-y-0 right-0 bg-red-500/10 border-l border-red-500/30" style={{width: layoutConfig.side}} />
 				</div>
 			)}
 		</AbsoluteFill>
