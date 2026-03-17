@@ -45,10 +45,10 @@ export interface SlideProps {
 		show_hashtag?: boolean;
 		safe_zone?: 'tiktok' | 'stories' | 'none';
 		thumbnail_mode?: 'none' | 'freeze' | 'static';
-		font_size_title?: number;
-		font_size_body?: number;
-		font_size_title_4_5?: number;
-		font_size_body_4_5?: number;
+		font_size_title?: number | string;
+		font_size_body?: number | string;
+		font_size_title_4_5?: number | string;
+		font_size_body_4_5?: number | string;
 		author?: {
 			name: string;
 			handle: string;
@@ -140,13 +140,11 @@ export const Slide: React.FC<SlideProps> = ({
 	}
 
 	// Font Size Computations (Removes Nested Ternary Code Smell)
-	let computedTitleSize = width * 0.1; // Default fallback
-	let computedBodySize = width * 0.075; // Default fallback
+	let computedTitleSize: number | string = width * 0.1; // Default fallback
+	let computedBodySize: number | string = width * 0.075; // Default fallback
 
 	// Determine base sizes according to the active layout configuration
-	if (layout === 'intro') {
-		computedTitleSize = width * 0.085;
-	} else if (isOutro) {
+	if (isOutro) {
 		computedTitleSize = width * 0.12;
 		computedBodySize = width * 0.075;
 	} else if (imageUrl) {
@@ -171,6 +169,19 @@ export const Slide: React.FC<SlideProps> = ({
 		computedBodySize = config.font_size_body_4_5;
 	} else if (config.font_size_body) {
 		computedBodySize = config.font_size_body;
+	}
+
+	// 3. Ensure Intro slides always pop, even if the user hardcoded a global font size override
+	if (layout === 'intro') {
+		if (typeof computedTitleSize === 'number') {
+			computedTitleSize = computedTitleSize * 1.2;
+		} else if (typeof computedTitleSize === 'string') {
+			// e.g. "72px" -> 72 * 1.2 + "px"
+			const match = (computedTitleSize as string).match(/^([\d.]+)(.*)$/);
+			if (match) {
+				computedTitleSize = `${parseFloat(match[1]) * 1.4}${match[2]}`;
+			}
+		}
 	}
 
 	// Layout Spacing Computations
@@ -277,8 +288,8 @@ export const Slide: React.FC<SlideProps> = ({
 					opacity
 				}}
 			>
-				{/* Header (Always visible) */}
-				{config.show_hashtag !== false && (
+				{/* Header (Always visible unless intro) */}
+				{(config.show_hashtag !== false && layout !== 'intro') && (
 					<div 
 						className={`flex items-center gap-4 ${layoutConfig.headerJustify}`}
 						style={{ marginBottom: layoutConfig.headerMarginBottom }}
