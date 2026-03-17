@@ -145,7 +145,7 @@ export const Slide: React.FC<SlideProps> = ({
 		// Dynamic Font Sizes (Scale with width)
 		titleSize: (!isVertical && config.font_size_title_4_5) 
 			? config.font_size_title_4_5 
-			: config.font_size_title || (isOutro ? width * 0.12 : (imageUrl ? width * (isVertical ? 0.075 : 0.07) : width * 0.1)),
+			: config.font_size_title || (layout === 'intro' ? width * 0.085 : (isOutro ? width * 0.12 : (imageUrl ? width * (isVertical ? 0.075 : 0.07) : width * 0.1))),
 		bodySize: (!isVertical && config.font_size_body_4_5)
 			? config.font_size_body_4_5
 			: config.font_size_body || (isOutro ? width * 0.075 : (imageUrl ? width * (isVertical ? 0.055 : 0.05) : width * 0.075)),
@@ -235,8 +235,23 @@ export const Slide: React.FC<SlideProps> = ({
 							marginTop: (layout === 'image_top' && imageUrl) ? '40px' : '0px',
 							transform: `translate(${title_offset_x}px, ${titleY + title_offset_y}px)`
 						}}
-						className="w-full mb-8 flex-shrink-0"
+						className="w-full mb-8 flex-shrink-0 relative"
 					>
+						{/* Intro Special Design Feature: Animated Glowing Blob Behind Title & Badge */}
+						{layout === 'intro' && (
+							<>
+								<div 
+									className="absolute -top-[50%] -left-[20%] w-[140%] h-[200%] opacity-20 blur-[100px] z-[-1] pointer-events-none rounded-[100%]"
+									style={{
+										background: `radial-gradient(circle, ${accentColor} 0%, transparent 60%)`
+									}}
+								/>
+								<div className="mb-6 inline-flex items-center gap-3 bg-white/10 px-5 py-2 rounded-full border border-white/20 shadow-xl backdrop-blur-md">
+									<div className="w-3 h-3 rounded-full" style={{backgroundColor: accentColor, boxShadow: `0 0 15px 2px ${accentColor}`}} />
+									<span className="font-bold tracking-widest text-[28px] uppercase opacity-90" style={{color: primaryColor}}>{config.hashtag || 'NEW POST'}</span>
+								</div>
+							</>
+						)}
 						<h1 
 							style={{fontSize: layoutConfig.titleSize}}
 							className="font-black uppercase tracking-tighter leading-[1.05] mb-8"
