@@ -20,14 +20,25 @@ const render = async () => {
 	const script = JSON.parse(fs.readFileSync(scriptPath, 'utf8'));
 	const projectName = script.project_name?.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-') || 'default';
 	
-	const runAll = args.length === 0 || args.every(a => a.startsWith('--script') || a.startsWith('--format') || a.startsWith('--scale'));
-	const runStills = runAll || args.includes('--stills');
-	const runPdf = runAll || args.includes('--pdf');
-	const runVideo = runAll || args.includes('--video');
-
-	// Aspect Ratio and Scale Parsing
 	const formatArg = args.find(a => a.startsWith('--format='));
-	const format = formatArg ? formatArg.split('=')[1] : '9:16'; // Default 9:16
+	const formatStr = formatArg ? formatArg.split('=')[1] : '9:16';
+	const baseFormats = formatStr === 'all' ? ['9:16', '4:5'] : [formatStr];
+
+	const parseFormats = (argPrefix: string) => {
+		const arg = args.find(a => a.startsWith(argPrefix));
+		if (!arg) return baseFormats;
+		const val = arg.split('=')[1];
+		return val === 'all' ? ['9:16', '4:5'] : [val];
+	};
+
+	const stillsFormats = parseFormats('--stills-format=');
+	const pdfFormats = parseFormats('--pdf-format=');
+	const videoFormats = parseFormats('--video-format=');
+
+	const hasSpecificAction = args.some(a => ['--stills', '--pdf', '--video'].includes(a) || a.startsWith('--stills-format=') || a.startsWith('--pdf-format=') || a.startsWith('--video-format='));
+	const runStills = !hasSpecificAction || args.includes('--stills') || args.some(a => a.startsWith('--stills-format='));
+	const runPdf = !hasSpecificAction || args.includes('--pdf') || args.some(a => a.startsWith('--pdf-format='));
+	const runVideo = !hasSpecificAction || args.includes('--video') || args.some(a => a.startsWith('--video-format='));
 	
 	const scaleArg = args.find(a => a.startsWith('--scale='));
 	const scale = scaleArg ? parseFloat(scaleArg.split('=')[1]) : 1;
@@ -91,87 +102,90 @@ const render = async () => {
 
 	// 1. Render Stills
 	if (runStills) {
-		const stillsFormat = args.find(a => a.startsWith('--stills-format='))?.split('=')[1] || format;
-		await renderStillsInternal(stillsFormat);
+		for (const fmt of stillsFormats) {
+			await renderStillsInternal(fmt);
+		}
 	}
 
 	// 2. Generate PDF
 	if (runPdf) {
-		const pdfFormat = args.find(a => a.startsWith('--pdf-format='))?.split('=')[1] || format;
-		const { width, height } = getDimensions(pdfFormat);
-		const outDir = getOutDir(pdfFormat);
-		const stillsDir = path.join(outDir, 'stills');
-		
-		// Auto-render stills if missing
-		if (!fs.existsSync(stillsDir) || fs.readdirSync(stillsDir).length < script.slides.length) {
-			console.log(`Stills for ${pdfFormat} missing. Generating them automatically...`);
-			await renderStillsInternal(pdfFormat);
-		}
-
-		console.log(`Generating PDF for ${pdfFormat} (${width}x${height})...`);
-		
-		const pdf = new jsPDF({
-			orientation: 'portrait',
-			unit: 'px',
-			format: [width, height],
-		});
-
-		for (let i = 0; i < script.slides.length; i++) {
-			const imgPath = path.join(stillsDir, `slide-${i + 1}.png`);
-			if (!fs.existsSync(imgPath)) {
-				console.error(`ERROR: Failed to find or generate image for PDF: ${imgPath}`);
-				process.exit(1);
+		for (const fmt of pdfFormats) {
+			const { width, height } = getDimensions(fmt);
+			const outDir = getOutDir(fmt);
+			const stillsDir = path.join(outDir, 'stills');
+			
+			// Auto-render stills if missing
+			if (!fs.existsSync(stillsDir) || fs.readdirSync(stillsDir).length < script.slides.length) {
+				console.log(`Stills for ${fmt} missing. Generating them automatically...`);
+				await renderStillsInternal(fmt);
 			}
-			if (i > 0) pdf.addPage([width, height], 'portrait');
-			const imgData = fs.readFileSync(imgPath).toString('base64');
-			pdf.addImage(imgData, 'PNG', 0, 0, width, height);
+
+			console.log(`Generating PDF for ${fmt} (${width}x${height})...`);
+			
+			const pdf = new jsPDF({
+				orientation: 'portrait',
+				unit: 'px',
+				format: [width, height],
+			});
+
+			for (let i = 0; i < script.slides.length; i++) {
+				const imgPath = path.join(stillsDir, `slide-${i + 1}.png`);
+				if (!fs.existsSync(imgPath)) {
+					console.error(`ERROR: Failed to find or generate image for PDF: ${imgPath}`);
+					process.exit(1);
+				}
+				if (i > 0) pdf.addPage([width, height], 'portrait');
+				const imgData = fs.readFileSync(imgPath).toString('base64');
+				pdf.addImage(imgData, 'PNG', 0, 0, width, height);
+			}
+			const pdfPath = path.join(outDir, 'carousel.pdf');
+			pdf.save(pdfPath);
+			console.log(`PDF generated at ${pdfPath}`);
 		}
-		const pdfPath = path.join(outDir, 'carousel.pdf');
-		pdf.save(pdfPath);
-		console.log(`PDF generated at ${pdfPath}`);
 	}
 
 	// 3. Render Video
 	if (runVideo) {
-		const videoFormat = args.find(a => a.startsWith('--video-format='))?.split('=')[1] || format;
-		const { width, height } = getDimensions(videoFormat);
-		const outDir = getOutDir(videoFormat);
-		const videoCompId = getCompId(videoFormat);
-		const videoPath = path.join(outDir, 'video.mp4');
-		
-		if (!fs.existsSync(outDir)) fs.mkdirSync(outDir, { recursive: true });
+		for (const fmt of videoFormats) {
+			const { width, height } = getDimensions(fmt);
+			const outDir = getOutDir(fmt);
+			const videoCompId = getCompId(fmt);
+			const videoPath = path.join(outDir, 'video.mp4');
+			
+			if (!fs.existsSync(outDir)) fs.mkdirSync(outDir, { recursive: true });
 
-		console.log(`Rendering video for ${videoFormat} (${width}x${height})...`);
-		
-		const videoComps = await getCompositions(bundleLocation, {
-			inputProps: { 
-				slides: script.slides,
-				config: script.config,
-				width,
-				height
+			console.log(`Rendering video for ${fmt} (${width}x${height})...`);
+			
+			const videoComps = await getCompositions(bundleLocation, {
+				inputProps: { 
+					slides: script.slides,
+					config: script.config,
+					width,
+					height
+				}
+			});
+			const videoComp = videoComps.find((c) => c.id === videoCompId);
+			if (!videoComp) {
+				console.error(`Composition ${videoCompId} not found!`);
+				process.exit(1);
 			}
-		});
-		const videoComp = videoComps.find((c) => c.id === videoCompId);
-		if (!videoComp) {
-			console.error(`Composition ${videoCompId} not found!`);
-			process.exit(1);
-		}
-		
-		videoComp.durationInFrames = script.slides.reduce((acc: number, s: any) => acc + calculateSlideDuration(s), 0);
+			
+			videoComp.durationInFrames = script.slides.reduce((acc: number, s: any) => acc + calculateSlideDuration(s), 0);
 
-		await renderMedia({
-			composition: videoComp,
-			serveUrl: bundleLocation,
-			outputLocation: videoPath,
-			inputProps: { 
-				slides: script.slides,
-				config: script.config,
-				width,
-				height
-			},
-			codec: 'h264',
-		});
-		console.log(`Video generated at ${videoPath}`);
+			await renderMedia({
+				composition: videoComp,
+				serveUrl: bundleLocation,
+				outputLocation: videoPath,
+				inputProps: { 
+					slides: script.slides,
+					config: script.config,
+					width,
+					height
+				},
+				codec: 'h264',
+			});
+			console.log(`Video generated at ${videoPath}`);
+		}
 	}
 
 	console.log('Done!');
