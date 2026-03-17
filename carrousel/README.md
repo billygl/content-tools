@@ -45,6 +45,7 @@ npm run render -- --scale=2
 Mix and match formats for different assets in one command:
 ```bash
 npm run render -- --stills-format=9:16 --pdf-format=4:5 --video-format=9:16
+npx tsx scripts/render.ts --stills-format=9:16 --pdf-format=4:5 --video-format=9:16
 ```
 > [!TIP]
 > If you request a PDF in a format that hasn't been rendered yet, the script will **automatically generate the required stills** for you.
