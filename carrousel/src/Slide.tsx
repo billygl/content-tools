@@ -129,30 +129,96 @@ export const Slide: React.FC<SlideProps> = ({
 	const aspectRatio = width / height;
 	const isVertical = aspectRatio < 0.7; // ~9:16 is 0.56, 4:5 is 0.8
 
-	const imageUrl = image && !image.startsWith('http') ? staticFile(`data/${image}`) : image;
-	const selectedStyle = (!isVertical && image_style_4_5) ? image_style_4_5 : image_style;
+	let imageUrl = image;
+	if (image && !image.startsWith('http')) {
+		imageUrl = staticFile(`data/${image}`);
+	}
 
-	// Layout Centralization - Dynamic based on height/width
+	let selectedStyle = image_style;
+	if (!isVertical && image_style_4_5) {
+		selectedStyle = image_style_4_5;
+	}
+
+	// Font Size Computations (Removes Nested Ternary Code Smell)
+	let computedTitleSize = width * 0.1; // Default fallback
+	let computedBodySize = width * 0.075; // Default fallback
+
+	// Determine base sizes according to the active layout configuration
+	if (layout === 'intro') {
+		computedTitleSize = width * 0.085;
+	} else if (isOutro) {
+		computedTitleSize = width * 0.12;
+		computedBodySize = width * 0.075;
+	} else if (imageUrl) {
+		// Slides with images have tighter space requirements for text
+		if (isVertical) {
+			computedTitleSize = width * 0.075;
+			computedBodySize = width * 0.055;
+		} else {
+			computedTitleSize = width * 0.07;
+			computedBodySize = width * 0.05;
+		}
+	}
+
+	// Apply theme overrides or format-specific overrides (4:5 vs 9:16)
+	if (!isVertical && config.font_size_title_4_5) {
+		computedTitleSize = config.font_size_title_4_5;
+	} else if (config.font_size_title) {
+		computedTitleSize = config.font_size_title;
+	}
+
+	if (!isVertical && config.font_size_body_4_5) {
+		computedBodySize = config.font_size_body_4_5;
+	} else if (config.font_size_body) {
+		computedBodySize = config.font_size_body;
+	}
+
+	// Layout Spacing Computations
+	let computedTop = height * 0.1; // Reduced for 4:5
+	let computedSide = width * 0.06; // Reduced for 4:5
+	let computedBottom = 80; // Tight bottom for 4:5
+	let computedHeaderMarginBottom = 16;
+	
+	if (isVertical) {
+		computedTop = height * 0.14;
+		computedSide = width * 0.09;
+		computedHeaderMarginBottom = 40;
+
+		if (config.safe_zone === 'tiktok') {
+			computedBottom = 670;
+		} else if (config.safe_zone === 'stories') {
+			computedBottom = 380;
+		} else if (config.safe_zone === 'none') {
+			computedBottom = 80;
+		} else {
+			computedBottom = 150;
+		}
+	}
+
+	if (isOutro) {
+		computedBottom = height * 0.05;
+	}
+
+	let computedContentPaddingTop = 0;
+	if (isOutro) {
+		computedContentPaddingTop = height * 0.1;
+	}
+
+	let computedHeaderJustify = 'justify-start';
+	if (!imageUrl || isOutro) {
+		computedHeaderJustify = 'justify-center';
+	}
+
+	// Layout Centralization
 	const layoutConfig = {
-		top: isVertical ? height * 0.14 : height * 0.1, // Reduced for 4:5
-		side: isVertical ? width * 0.09 : width * 0.06, // Reduced for 4:5
-		// Outro slides bypass safe zones for impact, content slides respect them (TikTok/Stories)
-		bottom: isOutro 
-			? height * 0.05 
-			: isVertical 
-				? (config.safe_zone === 'tiktok' ? 670 : (config.safe_zone === 'stories' ? 380 : (config.safe_zone === 'none' ? 80 : 150)))
-				: 80, // Even tighter bottom for 4:5 to maximize space
-		// Dynamic Font Sizes (Scale with width)
-		titleSize: (!isVertical && config.font_size_title_4_5) 
-			? config.font_size_title_4_5 
-			: config.font_size_title || (layout === 'intro' ? width * 0.085 : (isOutro ? width * 0.12 : (imageUrl ? width * (isVertical ? 0.075 : 0.07) : width * 0.1))),
-		bodySize: (!isVertical && config.font_size_body_4_5)
-			? config.font_size_body_4_5
-			: config.font_size_body || (isOutro ? width * 0.075 : (imageUrl ? width * (isVertical ? 0.055 : 0.05) : width * 0.075)),
-		// Spacing adjustments
-		contentPaddingTop: isOutro ? height * 0.1 : 0,
-		headerJustify: (!imageUrl || isOutro) ? 'justify-center' : 'justify-start',
-		headerMarginBottom: isVertical ? 40 : 16, // Reduced for 4:5
+		top: computedTop,
+		side: computedSide,
+		bottom: computedBottom,
+		titleSize: computedTitleSize,
+		bodySize: computedBodySize,
+		contentPaddingTop: computedContentPaddingTop,
+		headerJustify: computedHeaderJustify,
+		headerMarginBottom: computedHeaderMarginBottom,
 	};
 
 	const accentColor = color || config.accent_color || '#00ff88';
