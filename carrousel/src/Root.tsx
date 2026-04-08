@@ -1,23 +1,44 @@
 import {Composition, Series, getInputProps} from 'remotion';
+import React from 'react';
 import {Slide} from './Slide';
 import './index.css';
-import script from '../public/data/script.json';
 import {calculateSlideDuration} from './utils/duration';
 import THEMES from '../public/data/themes.json';
 import {CustomComponents} from './custom';
 
+const getStaticScript = () => {
+	try {
+		// Use require.context to avoid "Module not found" warnings if the file is missing
+		const context = (require as any).context('../public/data', false, /script\.json$/);
+		if (context.keys().includes('./script.json')) {
+			return context('./script.json');
+		}
+	} catch (e) {
+		// Ignore any errors
+	}
+	return { slides: [], config: {} };
+};
+
+const defaultScript = getStaticScript();
+
 export const RemotionRoot: React.FC = () => {
-	const config = script.config as any;
+    const inputProps = getInputProps() as any;
+	
+	// We use the inputProps if they contain slides, otherwise fallback to the bundled script
+	const activeScript = (inputProps && inputProps.slides && inputProps.slides.length > 0) ? inputProps : defaultScript;
+	const config = activeScript.config || {};
 	const thumbnailMode = config.thumbnail_mode || 'none';
 	const preRollFrames = thumbnailMode === 'freeze' ? 15 : 0;
 
-	// Calculate dynamic duration by summing all individual slide durations
-	const totalDuration = script.slides.reduce((acc, slide) => {
+	// Calculate dynamic duration. Must be at least 1 frame to prevent Remotion from crashing.
+	const slides = activeScript.slides || [];
+	const calculatedDuration = slides.reduce((acc: number, slide: any) => {
 		return acc + calculateSlideDuration(slide);
 	}, 0) + preRollFrames;
+	
+	const totalDuration = Math.max(1, calculatedDuration);
 
 	// Support dynamic resolution via input props (for --scale)
-	const inputProps = getInputProps() as {width?: number; height?: number};
 	const width = inputProps.width || 1080;
 	const height = inputProps.height;
 
@@ -32,8 +53,8 @@ export const RemotionRoot: React.FC = () => {
 				width={width}
 				height={height || 1920}
 				defaultProps={{
-					slides: script.slides,
-					config: script.config,
+					slides: activeScript.slides,
+					config: activeScript.config,
 				}}
 			/>
 
@@ -46,8 +67,8 @@ export const RemotionRoot: React.FC = () => {
 				width={width}
 				height={height || 1350}
 				defaultProps={{
-					slides: script.slides,
-					config: script.config,
+					slides: activeScript.slides,
+					config: activeScript.config,
 				}}
 			/>
 
@@ -59,8 +80,8 @@ export const RemotionRoot: React.FC = () => {
 				width={width}
 				height={height || 1920}
 				defaultProps={{
-					slide: script.slides[0],
-					config: script.config,
+					slide: activeScript.slides[0],
+					config: activeScript.config,
 				}}
 			/>
 		</>

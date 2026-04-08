@@ -12,14 +12,24 @@ npm install
 ```
 
 ### 2. Live Preview (Hot Reload)
-See your changes instantly in the browser without rendering:
+See your changes instantly in the browser without rendering.
+
+To preview a specific project (most reliable):
 ```bash
-npm run dev
+npx remotion studio --props=public/data/git_working_trees/script.json
 ```
+*(Using `npx` handles flags like `--props` much better than `npm run` on most systems)*
 
 ### 3. Generate Everything (Standard 9:16)
 ```bash
-npm run render
+# Render a specific project:
+npm run render -- --project=git_basics
+
+# Render multiple projects:
+npm run render -- --project=git_basics,judit
+
+# Render all projects in public/data:
+npm run render -- --project=all
 ```
 *Outputs: `out/[project]/9-16/stills/`, `out/[project]/9-16/carousel.pdf`, `out/[project]/9-16/video.mp4`*
 
@@ -31,21 +41,21 @@ You can now generate content in **9:16** (TikTok/Reels) or **4:5** (LinkedIn/Ins
 
 ### 1. Render in 4:5 (Optimized Layout)
 ```bash
-npm run render -- --format=4:5
+npm run render -- --project=all --format=4:5
 ```
 *The 4:5 layout automatically reduces safe zones and margins to maximize content density.*
 
 ### 2. High Resolution (4K / Scaling)
 ```bash
 # Double the resolution (3840x2160 for 16:9 equivalent)
-npm run render -- --scale=2
+npm run render -- --project=all --scale=2
 ```
 
 ### 3. Advanced Asset Overrides
 Mix and match formats for different assets in one command:
 ```bash
-npm run render -- --stills-format=9:16 --pdf-format=4:5 --video-format=9:16
-npx tsx scripts/render.ts --stills-format=9:16 --pdf-format=4:5 --video-format=9:16
+npm run render -- --project=all --stills-format=9:16 --pdf-format=4:5 --video-format=9:16
+npx tsx scripts/render.ts --project=all --stills-format=9:16 --pdf-format=4:5 --video-format=9:16
 ```
 > [!TIP]
 > If you request a PDF in a format that hasn't been rendered yet, the script will **automatically generate the required stills** for you.
@@ -57,17 +67,17 @@ npx tsx scripts/render.ts --stills-format=9:16 --pdf-format=4:5 --video-format=9
 To organize different social media posts, keep your scripts in `data/posts/`:
 
 ### Create a new post:
-1.  Create folder: `data/posts/my-new-post/`
+1.  Create folder: `public/data/my-new-post/`
 2.  Add: `script.json` (use the [LLM Prompt](./LLM_PROMPT.md) to generate it).
-3.  Add: Any images to `public/data/`.
+3.  Add: Any images to that folder `public/data/my-new-post/`.
 
 ### Render a specific post:
 ```bash
 # Render everything for a specific project
-npm run render -- --script=data/posts/judit-polgar/script.json
+npm run render -- --project=my-new-post
 
 # Render only video in 4:5
-npm run render:video -- --script=data/posts/judit-polgar/script.json --format=4:5
+npm run render:video -- --project=my-new-post --format=4:5
 ```
 
 ---

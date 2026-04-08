@@ -6,19 +6,16 @@ import {jsPDF} from 'jspdf';
 import {enableTailwind} from '@remotion/tailwind-v4';
 import {calculateSlideDuration} from '../src/utils/duration';
 
-const render = async () => {
-	const args = process.argv.slice(2);
-	const scriptArg = args.find(a => a.startsWith('--script='));
-	const scriptFile = scriptArg ? scriptArg.split('=')[1] : 'public/data/script.json';
-	const scriptPath = path.resolve(scriptFile);
-	
+const renderProject = async (scriptPath: string) => {
 	if (!fs.existsSync(scriptPath)) {
 		console.error(`Script not found: ${scriptPath}`);
-		process.exit(1);
+		return;
 	}
 
+	const args = process.argv.slice(2);
 	const script = JSON.parse(fs.readFileSync(scriptPath, 'utf8'));
-	const projectName = script.project_name?.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-') || 'default';
+	const folderName = path.basename(path.dirname(scriptPath));
+	const projectName = folderName !== 'data' && folderName !== 'public' && folderName !== '.' ? folderName : (script.project_name?.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-') || 'default');
 	
 	const formatArg = args.find(a => a.startsWith('--format='));
 	const formatStr = formatArg ? formatArg.split('=')[1] : '9:16';
@@ -188,10 +185,37 @@ const render = async () => {
 		}
 	}
 
-	console.log('Done!');
+	console.log(`Done with project: ${projectName}!`);
 };
 
-render().catch((err) => {
+const main = async () => {
+    const args = process.argv.slice(2);
+    const projectArg = args.find(a => a.startsWith('--project='));
+    const projectValues = projectArg ? projectArg.split('=')[1] : null;
+
+    if (!projectValues) {
+        console.error("ERROR: You must specify a mandatory project folder name using --project.");
+        console.error("Example: npm run render -- --project=git_basics");
+        console.error("Example: npm run render -- --project=git_basics,judit");
+        console.error("Example: npm run render -- --project=all");
+        process.exit(1);
+    }
+
+    if (projectValues === 'all') {
+        const dataDir = path.resolve('public/data');
+        const folders = fs.readdirSync(dataDir).filter(f => fs.statSync(path.join(dataDir, f)).isDirectory());
+        for (const folder of folders) {
+            await renderProject(path.join(dataDir, folder, 'script.json'));
+        }
+    } else {
+        const projects = projectValues.split(',').map(p => p.trim());
+        for (const projectFolder of projects) {
+            await renderProject(path.resolve(`public/data/${projectFolder}/script.json`));
+        }
+    }
+};
+
+main().catch((err) => {
 	console.error(err);
 	process.exit(1);
 });
