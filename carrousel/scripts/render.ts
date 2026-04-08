@@ -171,7 +171,10 @@ const renderProject = async (scriptPath: string) => {
 				process.exit(1);
 			}
 			
-			videoComp.durationInFrames = script.slides.reduce((acc: number, s: any) => acc + calculateSlideDuration(s), 0);
+			const thumbnailMode = script.config?.thumbnail_mode || 'none';
+			const preRollFrames = thumbnailMode === 'freeze' ? 15 : 0;
+			const calculatedDuration = script.slides.reduce((acc: number, s: any) => acc + calculateSlideDuration(s), 0) + preRollFrames;
+			videoComp.durationInFrames = Math.max(1, calculatedDuration);
 
 			await renderMedia({
 				composition: videoComp,
@@ -194,15 +197,23 @@ const renderProject = async (scriptPath: string) => {
 
 const main = async () => {
     const args = process.argv.slice(2);
+    const positionalArgs = args.filter(a => !a.startsWith('-'));
     const projectArg = args.find(a => a.startsWith('--project='));
-    const positionalArg = args.find(a => !a.startsWith('-'));
     
-    const projectFolder = projectArg ? projectArg.split('=')[1] : positionalArg;
+    // First positional is the project
+    const projectFolder = projectArg ? projectArg.split('=')[1] : positionalArgs[0];
+    
+    // Second positional is the format (optional)
+    const positionalFormat = positionalArgs[1];
 
     if (!projectFolder) {
         console.error("ERROR: You must specify a project folder name.");
-        console.error("Example: npm run render -- git_basics");
         process.exit(1);
+    }
+
+    // If the user provided a format as a positional arg (e.g. '4:5'), inject it into args
+    if (positionalFormat && (positionalFormat.includes(':') || positionalFormat === 'all')) {
+        process.argv.push(`--format=${positionalFormat}`);
     }
 
     const scriptPath = path.resolve(`public/data/${projectFolder}/script.json`);

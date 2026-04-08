@@ -39,21 +39,21 @@ You can now generate content in **9:16** (TikTok/Reels) or **4:5** (LinkedIn/Ins
 
 ### 1. Render in 4:5 (Optimized Layout)
 ```bash
-npm run render -- --project=all --format=4:5
+# Simplest way (Project followed by Format)
+npm run render git_basics 4:5
 ```
 *The 4:5 layout automatically reduces safe zones and margins to maximize content density.*
 
 ### 2. High Resolution (4K / Scaling)
 ```bash
-# Double the resolution (3840x2160 for 16:9 equivalent)
-npm run render -- --project=all --scale=2
+# Double the resolution
+npm run render git_basics -- --scale=2
 ```
 
-### 3. Advanced Asset Overrides
-Mix and match formats for different assets in one command:
+### 3. Power User (Custom Asset Mix)
+If you want to render different formats for different assets simultaneously without NPM interference on Windows, bypass NPM and use `npx` directly:
 ```bash
-npm run render -- --project=all --stills-format=9:16 --pdf-format=4:5 --video-format=9:16
-npx tsx scripts/render.ts --project=all --stills-format=9:16 --pdf-format=4:5 --video-format=9:16
+npx tsx scripts/render.ts git_basics --stills-format=9:16 --pdf-format=4:5 --video-format=9:16
 ```
 > [!TIP]
 > If you request a PDF in a format that hasn't been rendered yet, the script will **automatically generate the required stills** for you.
@@ -72,10 +72,10 @@ To organize different social media posts, keep your scripts in `data/posts/`:
 ### Render a specific post:
 ```bash
 # Render everything for a specific project
-npm run render -- --project=my-new-post
+npm run render my-new-post
 
 # Render only video in 4:5
-npm run render:video -- --project=my-new-post --format=4:5
+npm run render my-new-post -- --video --format=4:5
 ```
 
 ---
