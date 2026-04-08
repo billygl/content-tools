@@ -8,6 +8,14 @@
 import { Config } from "@remotion/cli/config";
 import { enableTailwind } from '@remotion/tailwind-v4';
 
-Config.setVideoImageFormat("jpeg");
-Config.setOverwriteOutput(true);
-Config.overrideWebpackConfig(enableTailwind);
+Config.overrideWebpackConfig((config) => {
+	const withTailwind = enableTailwind(config);
+	const webpack = require('webpack');
+	return {
+		...withTailwind,
+		plugins: [
+			...(withTailwind.plugins || []),
+			new webpack.EnvironmentPlugin(['REMOTION_PROJECT_FOLDER']),
+		],
+	};
+});

@@ -27,13 +27,7 @@ npm run dev -- --project=git_basics
 ### 3. Generate Everything (Standard 9:16)
 ```bash
 # Render a specific project:
-npm run render -- --project=git_basics
-
-# Render multiple projects:
-npm run render -- --project=git_basics,judit
-
-# Render all projects in public/data:
-npm run render -- --project=all
+npm run render git_basics
 ```
 *Outputs: `out/[project]/9-16/stills/`, `out/[project]/9-16/carousel.pdf`, `out/[project]/9-16/video.mp4`*
 

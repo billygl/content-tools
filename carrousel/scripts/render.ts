@@ -195,28 +195,18 @@ const renderProject = async (scriptPath: string) => {
 const main = async () => {
     const args = process.argv.slice(2);
     const projectArg = args.find(a => a.startsWith('--project='));
-    const projectValues = projectArg ? projectArg.split('=')[1] : null;
+    const positionalArg = args.find(a => !a.startsWith('-'));
+    
+    const projectFolder = projectArg ? projectArg.split('=')[1] : positionalArg;
 
-    if (!projectValues) {
-        console.error("ERROR: You must specify a mandatory project folder name using --project.");
-        console.error("Example: npm run render -- --project=git_basics");
-        console.error("Example: npm run render -- --project=git_basics,judit");
-        console.error("Example: npm run render -- --project=all");
+    if (!projectFolder) {
+        console.error("ERROR: You must specify a project folder name.");
+        console.error("Example: npm run render -- git_basics");
         process.exit(1);
     }
 
-    if (projectValues === 'all') {
-        const dataDir = path.resolve('public/data');
-        const folders = fs.readdirSync(dataDir).filter(f => fs.statSync(path.join(dataDir, f)).isDirectory());
-        for (const folder of folders) {
-            await renderProject(path.join(dataDir, folder, 'script.json'));
-        }
-    } else {
-        const projects = projectValues.split(',').map(p => p.trim());
-        for (const projectFolder of projects) {
-            await renderProject(path.resolve(`public/data/${projectFolder}/script.json`));
-        }
-    }
+    const scriptPath = path.resolve(`public/data/${projectFolder}/script.json`);
+    await renderProject(scriptPath);
 };
 
 main().catch((err) => {
