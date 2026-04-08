@@ -65,41 +65,50 @@ const Highlighter: React.FC<{
 	highlightTextColor?: string;
 	isTitle?: boolean;
 }> = ({text, accentColor, primaryColor, highlightBgColor, highlightTextColor, isTitle}) => {
+	// First split by newline to handle carriage returns
+	const lines = text.split('\n');
+
 	return (
 		<>
-			{text.split(' ').map((word, i) => {
-				const isBlockHighlight = word.startsWith('%');
-				const isAccentHighlight = word.startsWith('@');
-				const cleanWord = word.replace(/[%@]/g, '');
+			{lines.map((line, lineIdx) => (
+				<React.Fragment key={lineIdx}>
+					{line.split(' ').map((word, wordIdx) => {
+						const isBlockHighlight = word.startsWith('%');
+						const isAccentHighlight = word.startsWith('@');
+						const cleanWord = word.replace(/[%@]/g, '');
 
-				if (isBlockHighlight) {
-					return (
-						<React.Fragment key={i}>
-							<span 
-								style={{
-									backgroundColor: highlightBgColor || accentColor,
-									color: highlightTextColor || primaryColor
-								}}
-								className={`${isTitle ? 'px-6 py-2' : 'px-3 py-1'} inline-block`}
-							>
-								{cleanWord}
-							</span>{' '}
-						</React.Fragment>
-					);
-				}
+						if (isBlockHighlight) {
+							return (
+								<React.Fragment key={wordIdx}>
+									<span 
+										style={{
+											backgroundColor: highlightBgColor || accentColor,
+											color: highlightTextColor || primaryColor
+										}}
+										className={`${isTitle ? 'px-6 py-2' : 'px-3 py-1'} inline-block`}
+									>
+										{cleanWord}
+									</span>{' '}
+								</React.Fragment>
+							);
+						}
 
-				if (isAccentHighlight) {
-					return (
-						<React.Fragment key={i}>
-							<span style={{color: accentColor}}>
-								{cleanWord}
-							</span>{' '}
-						</React.Fragment>
-					);
-				}
+						if (isAccentHighlight) {
+							return (
+								<React.Fragment key={wordIdx}>
+									<span style={{color: accentColor}}>
+										{cleanWord}
+									</span>{' '}
+								</React.Fragment>
+							);
+						}
 
-				return <React.Fragment key={i}>{word} </React.Fragment>;
-			})}
+						return <React.Fragment key={wordIdx}>{word} </React.Fragment>;
+					})}
+					{/* Add a line break after each line except the last one */}
+					{lineIdx < lines.length - 1 && <br />}
+				</React.Fragment>
+			))}
 		</>
 	);
 };
