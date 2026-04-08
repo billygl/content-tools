@@ -45,6 +45,7 @@ export interface SlideProps {
 		show_hashtag?: boolean;
 		safe_zone?: 'tiktok' | 'stories' | 'none';
 		thumbnail_mode?: 'none' | 'freeze' | 'static';
+		projectFolder?: string;
 		font_size_title?: number | string;
 		font_size_body?: number | string;
 		font_size_title_4_5?: number | string;
@@ -140,7 +141,8 @@ export const Slide: React.FC<SlideProps> = ({
 
 	let imageUrl = image;
 	if (image && !image.startsWith('http')) {
-		imageUrl = staticFile(`data/${image}`);
+		const prefix = config.projectFolder ? `data/${config.projectFolder}/` : 'data/';
+		imageUrl = staticFile(`${prefix}${image}`);
 	}
 
 	let selectedStyle = image_style;
@@ -183,7 +185,7 @@ export const Slide: React.FC<SlideProps> = ({
 	// 3. Ensure Intro slides always pop, even if the user hardcoded a global font size override
 	if (layout === 'intro') {
 		if (typeof computedTitleSize === 'number') {
-			computedTitleSize = computedTitleSize * 1.2;
+			computedTitleSize = computedTitleSize * 1.3;
 		} else if (typeof computedTitleSize === 'string') {
 			// e.g. "72px" -> 72 * 1.2 + "px"
 			const match = (computedTitleSize as string).match(/^([\d.]+)(.*)$/);

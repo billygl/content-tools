@@ -14,11 +14,15 @@ npm install
 ### 2. Live Preview (Hot Reload)
 See your changes instantly in the browser without rendering.
 
-To preview a specific project (most reliable):
+To preview a specific project:
 ```bash
-npx remotion studio --props=public/data/git_working_trees/script.json
+# Easiest way (avoids npm warnings):
+npm run dev git_working_trees
+
+# Or using the explicit flag:
+npm run dev -- --project=git_basics
 ```
-*(Using `npx` handles flags like `--props` much better than `npm run` on most systems)*
+*(This automatically handles folder paths and ensures images located next to your `script.json` are loaded correctly)*
 
 ### 3. Generate Everything (Standard 9:16)
 ```bash

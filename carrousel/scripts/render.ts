@@ -17,6 +17,10 @@ const renderProject = async (scriptPath: string) => {
 	const folderName = path.basename(path.dirname(scriptPath));
 	const projectName = folderName !== 'data' && folderName !== 'public' && folderName !== '.' ? folderName : (script.project_name?.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-') || 'default');
 	
+	// Inject folder name for asset resolution
+	if (!script.config) script.config = {};
+	script.config.projectFolder = folderName;
+	
 	const formatArg = args.find(a => a.startsWith('--format='));
 	const formatStr = formatArg ? formatArg.split('=')[1] : '9:16';
 	const baseFormats = formatStr === 'all' ? ['9:16', '4:5'] : [formatStr];
