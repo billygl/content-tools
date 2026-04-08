@@ -215,6 +215,12 @@ export const Slide: React.FC<SlideProps> = ({
 		} else {
 			computedBottom = 150;
 		}
+	} else {
+		// Optimization for 4:5 (No safe zones, minimal headers)
+		computedTop = height * 0.05; // Significant pruning
+		computedSide = width * 0.07;
+		computedHeaderMarginBottom = 8;
+		computedBottom = 40;
 	}
 
 	if (isOutro) {
@@ -306,7 +312,7 @@ export const Slide: React.FC<SlideProps> = ({
 						style={{ marginBottom: layoutConfig.headerMarginBottom }}
 					>
 						<Hash size={50} color={accentColor} />
-						<span className="text-5xl font-bold tracking-tight opacity-70">
+						<span className={`${isVertical ? 'text-5xl' : 'text-3xl'} font-bold tracking-tight opacity-70`}>
 							{config.hashtag || 'carousel'}
 						</span>
 					</div>
@@ -441,7 +447,8 @@ export const Slide: React.FC<SlideProps> = ({
 								marginRight: selectedStyle?.width ? 'auto' : -layoutConfig.side,
 								width: selectedStyle?.width || `calc(100% + ${layoutConfig.side * 2}px)`,
 								height: selectedStyle?.height || 'auto',
-								borderRadius: selectedStyle?.borderRadius || '60px',
+								minHeight: !isVertical ? '400px' : '0px', // Ensure images aren't tiny in 4:5
+								borderRadius: selectedStyle?.borderRadius || (isVertical ? '60px' : '40px'),
 							}}
 						>
 							<Img
@@ -490,13 +497,15 @@ export const Slide: React.FC<SlideProps> = ({
 					)}
 				</div>
 
-				{/* Progress Bar */}
-				<div className="w-full pt-8 flex-shrink-0">
-					<div
-						className="h-2 rounded-full w-full"
-						style={{backgroundColor: accentColor, opacity: 0.3}}
-					/>
-				</div>
+				{/* Progress Bar (Hidden in 4:5 with images) */}
+				{!(imageUrl && !isVertical) && (
+					<div className="w-full pt-8 flex-shrink-0">
+						<div
+							className="h-2 rounded-full w-full"
+							style={{backgroundColor: accentColor, opacity: 0.3}}
+						/>
+					</div>
+				)}
 			</div>
 
 			{/* Floating CTA (Only on non-outro) */}
@@ -505,12 +514,20 @@ export const Slide: React.FC<SlideProps> = ({
 					className="absolute bottom-16 right-16 flex items-center gap-6 z-30"
 					style={{opacity}}
 				>
-					<div className="text-4xl font-black opacity-80 uppercase tracking-[0.2em] whitespace-nowrap drop-shadow-[0_4px_12px_rgba(0,0,0,0.8)] px-4 py-2">
-						Desliza
-					</div>
+					{/* Hide text in 4:5 with images */}
+					{!(imageUrl && !isVertical) && (
+						<div className="text-4xl font-black opacity-80 uppercase tracking-[0.2em] whitespace-nowrap drop-shadow-[0_4px_12px_rgba(0,0,0,0.8)] px-4 py-2">
+							Desliza
+						</div>
+					)}
 					<div
 						className="w-24 h-24 rounded-full flex items-center justify-center border-4 border-white/30 shadow-[0_20px_40px_rgba(0,0,0,0.5)] backdrop-blur-2xl"
-						style={{color: accentColor, backgroundColor: 'rgba(255,255,255,0.1)'}}
+						style={{
+							color: accentColor, 
+							backgroundColor: 'rgba(255,255,255,0.1)',
+							// Move arrow slightly lower if line/text is gone
+							marginBottom: (imageUrl && !isVertical) ? '-40px' : '0px'
+						}}
 					>
 						<ArrowRight size={56} strokeWidth={3} />
 					</div>
