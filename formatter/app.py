@@ -13,6 +13,9 @@ from formatter import (
 )
 from database import get_queue, add_to_queue, update_queue_item, delete_from_queue, init_db
 from linkedin_api import upload_local_image, upload_local_document, schedule_post
+import linkedin_api
+import urllib.parse
+import requests
 
 load_dotenv()
 
@@ -75,6 +78,65 @@ def login():
 def logout():
     logout_user()
     return redirect(url_for("login"))
+
+@app.route("/auth/linkedin")
+@login_required
+def auth_linkedin():
+    client_id = os.getenv("LINKEDIN_CLIENT_ID")
+    # Using localhost if running locally, or the actual host if deployed
+    redirect_uri = url_for("callback_linkedin", _external=True)
+    scopes = "w_member_social openid profile email"
+    
+    params = {
+        "response_type": "code",
+        "client_id": client_id,
+        "redirect_uri": redirect_uri,
+        "scope": scopes,
+        "state": secrets.token_hex(8)
+    }
+    
+    auth_url = "https://www.linkedin.com/oauth/v2/authorization"
+    return redirect(f"{auth_url}?{urllib.parse.urlencode(params)}")
+
+@app.route("/callback/linkedin")
+@login_required
+def callback_linkedin():
+    code = request.args.get("code")
+    if not code:
+        flash("Error: No code received from LinkedIn", "error")
+        return redirect(url_for("index"))
+    
+    client_id = os.getenv("LINKEDIN_CLIENT_ID")
+    client_secret = os.getenv("LINKEDIN_CLIENT_SECRET")
+    redirect_uri = url_for("callback_linkedin", _external=True)
+    
+    token_url = "https://www.linkedin.com/oauth/v2/accessToken"
+    payload = {
+        "grant_type": "authorization_code",
+        "code": code,
+        "redirect_uri": redirect_uri,
+        "client_id": client_id,
+        "client_secret": client_secret
+    }
+    
+    try:
+        response = requests.post(token_url, data=payload)
+        response.raise_for_status()
+        token_data = response.json()
+        
+        access_token = token_data.get('access_token')
+        if access_token:
+            set_key(".env", "LINKEDIN_ACCESS_TOKEN", access_token)
+            # Update the global variable in linkedin_api module
+            linkedin_api.ACCESS_TOKEN = access_token
+            flash("LinkedIn token recovered and saved successfully!", "success")
+        else:
+            flash("Error: No access token in LinkedIn response", "error")
+            
+    except Exception as e:
+        flash(f"Error recovering token: {str(e)}", "error")
+        
+    return redirect(url_for("index"))
 
 @app.route("/")
 @login_required
